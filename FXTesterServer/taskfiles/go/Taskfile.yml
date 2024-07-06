@@ -1,0 +1,9 @@
+version: '3'
+
+tasks:
+  init:
+    cmds:
+      - anyenv install --skip-existing goenv
+      - goenv install --skip-existing $(cat ./.go-version)
+      - goenv local $(cat ./.go-version)
+      - goenv rehash

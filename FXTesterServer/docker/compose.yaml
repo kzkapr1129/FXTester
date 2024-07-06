@@ -1,0 +1,98 @@
+version: '3'
+
+services:
+  # データベースのコンテナ
+  fx-tester-db:
+    container_name: fx-tester-db
+    restart: always
+    ports:
+      - "127.0.0.1:5432:5432"
+    image: postgres
+    build:
+      context: ../
+      dockerfile: docker/postgres/Dockerfile
+    volumes:
+      - ./postgres/script:/docker-entrypoint-initdb.d
+    networks:
+      net_fxt:
+        ipv4_address: 192.168.254.10
+
+  # フロントエンドのコンテナ
+  fx-tester-fe:
+    container_name: fx-tester-fe
+    restart: always
+    ports:
+      - "127.0.0.1:3000:80"
+    image: nginx
+    build:
+      context: ../
+      dockerfile: docker/nginx/Dockerfile
+    volumes:
+      - ../../FXTesterWeb/dist:/usr/share/nginx/html
+    networks:
+      net_fxt:
+        ipv4_address: 192.168.254.20
+    depends_on:
+      - fx-tester-be
+
+  # バックエンドのコンテナ
+  fx-tester-be:
+    container_name: fx-tester-be
+    restart: always
+    ports:
+      - "127.0.0.1:8000:8000"
+    build:
+      context: ../
+      dockerfile: docker/bar/Dockerfile
+    networks:
+      net_fxt:
+        ipv4_address: 192.168.254.30
+    environment:
+      - PORT=${DC_PORT}
+      - DATABASE_NAME=${DC_DATABASE_NAME}
+      - DSN=${DC_DSN}
+      - MAX_IDLE_CONNECTIONS=${DC_MAX_IDLE_CONNECTIONS}
+      - MAX_OPEN_CONNECTIONS=${DC_MAX_OPEN_CONNECTIONS}
+      - CONNECTION_MAX_LIFE_TIME_SEC=${DC_CONNECTION_MAX_LIFE_TIME_SEC}
+      - IDP_METADATA_URL=${DC_IDP_METADATA_URL}
+      - SSL_CERT_PATH=${DC_SSL_CERT_PATH}
+      - SSL_KEY_PATH=${DC_SSL_KEY_PATH}
+      - SAML_CERT_PATH=${DC_SAML_CERT_PATH}
+      - SAML_KEY_PATH=${DC_SAML_KEY_PATH}
+      - ROOT_URL=${DC_ROOT_URL}
+      - ENTITY_ID=${DC_ENTITY_ID}
+      - REDIRECT_URL_AFTER_LOGIN=${DC_REDIRECT_URL_AFTER_LOGIN}
+      - REDIRECT_URL_AFTER_LOGOUT=${DC_REDIRECT_URL_AFTER_LOGOUT}
+      - ACCESS_TOKEN_KEY=${DC_ACCESS_TOKEN_KEY}
+      - REFRESH_TOKEN_KEY=${DC_REFRESH_TOKEN_KEY}
+    depends_on:
+      - keycloak
+      - fx-tester-db
+
+  # idP
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0.0
+    ports:
+      - "127.0.0.1:28080:8080"
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+    volumes:
+      - keycloak:/opt/keycloak/data/
+    restart: always
+    command:
+      - "start-dev"
+    networks:
+      net_fxt:
+        ipv4_address: 192.168.254.40
+
+networks:
+  net_fxt:
+    name: net_fxt
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.254.0/24
+
+volumes:
+  keycloak:

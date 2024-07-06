@@ -1,0 +1,63 @@
+version: '3'
+
+includes:
+  env:
+    taskfile: ./taskfiles/env/Taskfile_{{OS}}.yml
+    optional: true
+  go:
+    taskfile: ./taskfiles/go/Taskfile.yml
+    optional: true
+  tools:
+    taskfile: ./taskfiles/tools/Taskfile_{{OS}}.yml
+    optional: true
+
+tasks:
+  init:
+    cmds:
+      - task: env:init
+      - task: go:init
+      - task: tools:init
+      - |
+        if [ ! -f ".envrc" ]; then
+          cp envrc_sample .envrc
+        fi
+
+  # コンテナ起動関連のコマンド
+  dc:up:
+    cmds:
+      - docker compose -f docker/compose.yaml up -d
+  dc:up:db:
+    cmds:
+      - docker compose -f docker/compose.yaml up fx-tester-db -d
+  dc:up:keycloak:
+    cmds:
+      - docker compose -f docker/compose.yaml up keycloak -d
+  dc:down:
+    cmds:
+      - docker compose -f docker/compose.yaml down
+
+  # docker関連のcleanコマンド
+  dc:clean:
+    cmds:
+      - docker compose -f docker/compose.yaml down
+      - docker volume prune
+      - docker image prune -a
+  dc:clean:volume:
+    cmds:
+      - docker volume prune
+  dc:clean:image:
+    cmds:
+      - docker image prune -a
+  dc:clean:system:
+    cmds:
+      - docker image prune -a
+
+  # openapi関連のコマンド
+  openapi:build:
+    cmds:
+      - oapi-codegen -package gen openapi/bar.yaml > openapi/gen/bar.gen.go
+
+  # 証明書関連のコマンド
+  cert:build:
+    cmds:
+      - mkcert -cert-file cert/fx-tester.cert.pem -key-file cert/fx-tester.key.pem fx-tester-be fx-tester-fe keycloak  192.168.254.10 192.168.254.20 192.168.254.30 192.168.254.40 localhost 127.0.0.1

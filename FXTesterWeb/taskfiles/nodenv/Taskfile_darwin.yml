@@ -1,0 +1,12 @@
+version: '3'
+
+tasks:
+  init:
+    cmds:
+      - anyenv install --skip-existing nodenv
+      - exec $SHELL -l
+  init:npm:
+    cmds:
+      - nodenv install --skip-existing $(cat ./.node-version)
+      - nodenv local $(cat ./.node-version)
+      - npm i

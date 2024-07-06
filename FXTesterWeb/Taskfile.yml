@@ -1,0 +1,18 @@
+version: '3'
+
+includes:
+  env:
+    taskfile: ./taskfiles/env/Taskfile_{{OS}}.yml
+    optional: true
+  nodenv:
+    taskfile: ./taskfiles/nodenv/Taskfile_{{OS}}.yml
+    optional: true
+
+tasks:
+  init:
+    cmds:
+      - task: env:init
+      - task: nodenv:init
+  init:npm:
+    cmds:
+      - task: nodenv:init:npm

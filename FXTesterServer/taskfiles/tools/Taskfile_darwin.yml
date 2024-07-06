@@ -1,0 +1,14 @@
+version: '3'
+
+tasks:
+  init:
+    cmds:
+     - |
+      if ! ( command -v oapi-codegen 2>&1 >/dev/null ); then
+        go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest
+      fi
+     - |
+      if ! ( command -v mkcert 2>&1 >/dev/null ); then
+        brew install mkcert
+        mkcert -install
+      fi
