@@ -4,6 +4,7 @@ export ROOT_CA_PATH="$(mkcert -CAROOT)"/rootCA-key.pem
 # 開発環境の環境変数
 export PORT=FIXME
 export DATABASE_NAME=FIXME
+export ALLOW_ORIGINS="https://127.0.0.1:3000,https://localhost:3000"
 export DSN="user=FIXME password=FIXME dbname=FIXME sslmode=FIXME search_path=FIXME"
 export MAX_IDLE_CONNECTIONS=FIXME
 export MAX_OPEN_CONNECTIONS=FIXME
@@ -23,6 +24,7 @@ export REFRESH_TOKEN_KEY=FIXME
 # Dockerコンテナの環境変数
 export DC_PORT=FIXME
 export DC_DATABASE_NAME=FIXME
+export DC_ALLOW_ORIGINS="https://127.0.0.1:3000,https://localhost:3000"
 export DC_DSN="user=FIXME password=FIXME dbname=FIXME sslmode=FIXME search_path=FIXME"
 export DC_MAX_IDLE_CONNECTIONS=FIXME
 export DC_MAX_OPEN_CONNECTIONS=FIXME

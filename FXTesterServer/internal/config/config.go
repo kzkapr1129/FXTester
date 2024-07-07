@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"fxtester/internal"
+	"strings"
 	"sync"
 )
 
@@ -11,6 +12,7 @@ type Config struct {
 	Port                     uint16
 	DSN                      string
 	DatabaseName             string
+	AllowOrigins             []string
 	MaxIdleConnections       int
 	MaxOpenConnections       int
 	ConnectionMaxLifeTimeSec int
@@ -54,6 +56,16 @@ func loadConfig() (*Config, error) {
 	databaseName, err := internal.GetEnvAs("DATABASE_NAME", true, "")
 	if err != nil {
 		errs = append(errs, err)
+	}
+
+	var allowOrigins []string
+	if v, err := internal.GetEnvAs("ALLOW_ORIGINS", false, "https://127.0.0.1:3000,https://localhost:3000"); err != nil {
+		errs = append(errs, err)
+	} else {
+		allowOrigins = strings.Split(v, ",")
+		if len(allowOrigins) <= 0 {
+			allowOrigins = []string{"*"}
+		}
 	}
 
 	dsn, err := internal.GetEnvAs("DSN", true, "")
@@ -140,6 +152,7 @@ func loadConfig() (*Config, error) {
 		Port:                     port,
 		DSN:                      dsn,
 		DatabaseName:             databaseName,
+		AllowOrigins:             allowOrigins,
 		MaxIdleConnections:       maxIdleConnections,
 		MaxOpenConnections:       maxOpenConnections,
 		ConnectionMaxLifeTimeSec: connectionMaxLifeTimeSec,

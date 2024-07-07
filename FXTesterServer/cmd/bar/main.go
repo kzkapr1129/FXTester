@@ -35,7 +35,7 @@ func main() {
 	// ミドルウェアの設定
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{"https://127.0.0.1:3000"},
+		AllowOrigins:     config.GetConfig().AllowOrigins,
 		AllowCredentials: true,
 		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodDelete},
 	}))
