@@ -1,8 +1,7 @@
-package security
+package internal
 
 import (
 	"fmt"
-	"fxtester/internal/config"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -19,11 +18,11 @@ func GenerateAccessToken(userId string, expires time.Time) (string, error) {
 	claims := &Claims{
 		UserId: userId,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expires.Unix(),
-			IssuedAt:  time.Now().Unix(),
+			ExpiresAt: expires.UTC().Unix(),
+			IssuedAt:  time.Now().UTC().Unix(),
 		},
 	}
-	return generateJWT(claims, config.GetConfig().AccessTokenKey)
+	return generateJWT(claims, GetConfig().AccessTokenKey)
 }
 
 // GenerateRefreshToken リフレッシュトークンの生成
@@ -31,11 +30,11 @@ func GenerateRefreshToken(userId string, expires time.Time) (string, error) {
 	claims := &Claims{
 		UserId: userId,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expires.Unix(),
-			IssuedAt:  time.Now().Unix(),
+			ExpiresAt: expires.UTC().Unix(),
+			IssuedAt:  time.Now().UTC().Unix(),
 		},
 	}
-	return generateJWT(claims, config.GetConfig().RefreshTokenKey)
+	return generateJWT(claims, GetConfig().RefreshTokenKey)
 }
 
 func generateJWT(claims jwt.Claims, jwtKey string) (string, error) {
@@ -52,10 +51,11 @@ func VerifyAccessToken(tokenStr string) (*Claims, error) {
 	claims := &Claims{}
 
 	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-		return config.GetConfig().AccessTokenKey, nil
+		return GetConfig().AccessTokenKey, nil
 	})
 
 	if err != nil {
+		fmt.Println("failed ParseWithClaims: ", err)
 		return nil, err
 	}
 

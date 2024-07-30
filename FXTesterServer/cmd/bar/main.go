@@ -3,8 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"fxtester/internal/config"
-	"fxtester/internal/logger"
+	"fxtester/internal"
 	fxtm "fxtester/middleware"
 	"fxtester/openapi/gen"
 	"fxtester/service"
@@ -21,7 +20,7 @@ func main() {
 	flag.Parse()
 
 	// ログの初期化
-	closer := logger.InitLogger(*logfile, *logLevel)
+	closer := internal.InitLogger(*logfile, *logLevel)
 	defer closer()
 
 	e := echo.New()
@@ -35,7 +34,7 @@ func main() {
 	// ミドルウェアの設定
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     config.GetConfig().AllowOrigins,
+		AllowOrigins:     internal.GetConfig().AllowOrigins,
 		AllowCredentials: true,
 		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodDelete},
 	}))
@@ -44,8 +43,8 @@ func main() {
 	// サービスの開始
 	gen.RegisterHandlers(e, hdr)
 
-	addr := fmt.Sprintf(":%d", config.GetConfig().Port)
-	sslCertPath := config.GetConfig().SslCertPath
-	sslKeyPath := config.GetConfig().SslKeyPath
+	addr := fmt.Sprintf(":%d", internal.GetConfig().Port)
+	sslCertPath := internal.GetConfig().SslCertPath
+	sslKeyPath := internal.GetConfig().SslKeyPath
 	e.Logger.Fatal(e.StartTLS(addr, sslCertPath, sslKeyPath))
 }

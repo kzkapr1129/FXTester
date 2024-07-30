@@ -1,9 +1,8 @@
-package config
+package internal
 
 import (
 	"errors"
 	"fmt"
-	"fxtester/internal"
 	"strings"
 	"sync"
 )
@@ -48,18 +47,18 @@ func GetConfig() *Config {
 func loadConfig() (*Config, error) {
 	errs := []error{}
 
-	port, err := internal.GetEnvAs[uint16]("PORT", false, 8080)
+	port, err := GetEnvAs[uint16]("PORT", false, 8080)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	databaseName, err := internal.GetEnvAs("DATABASE_NAME", true, "")
+	databaseName, err := GetEnvAs("DATABASE_NAME", true, "")
 	if err != nil {
 		errs = append(errs, err)
 	}
 
 	var allowOrigins []string
-	if v, err := internal.GetEnvAs("ALLOW_ORIGINS", false, "https://127.0.0.1:3000,https://localhost:3000"); err != nil {
+	if v, err := GetEnvAs("ALLOW_ORIGINS", false, "https://127.0.0.1:3000,https://localhost:3000"); err != nil {
 		errs = append(errs, err)
 	} else {
 		allowOrigins = strings.Split(v, ",")
@@ -68,78 +67,78 @@ func loadConfig() (*Config, error) {
 		}
 	}
 
-	dsn, err := internal.GetEnvAs("DSN", true, "")
+	dsn, err := GetEnvAs("DSN", true, "")
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	maxIdleConnections, err := internal.GetEnvAs("MAX_IDLE_CONNECTIONS", false, 10)
+	maxIdleConnections, err := GetEnvAs("MAX_IDLE_CONNECTIONS", false, 10)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	maxOpenConnections, err := internal.GetEnvAs("MAX_OPEN_CONNECTIONS", false, 10)
+	maxOpenConnections, err := GetEnvAs("MAX_OPEN_CONNECTIONS", false, 10)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	connectionMaxLifeTimeSec, err := internal.GetEnvAs("CONNECTION_MAX_LIFE_TIME_SEC", false, 10)
+	connectionMaxLifeTimeSec, err := GetEnvAs("CONNECTION_MAX_LIFE_TIME_SEC", false, 10)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	idpMetadataUrl, err := internal.GetEnvAs("IDP_METADATA_URL", true, "")
+	idpMetadataUrl, err := GetEnvAs("IDP_METADATA_URL", true, "")
 	fmt.Println("idpMetadataUrl: ", idpMetadataUrl)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	sslCertPath, err := internal.GetEnvAs("SSL_CERT_PATH", true, "")
+	sslCertPath, err := GetEnvAs("SSL_CERT_PATH", true, "")
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	sslKeyPath, err := internal.GetEnvAs("SSL_KEY_PATH", true, "")
+	sslKeyPath, err := GetEnvAs("SSL_KEY_PATH", true, "")
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	samlCertPath, err := internal.GetEnvAs("SAML_CERT_PATH", true, "")
+	samlCertPath, err := GetEnvAs("SAML_CERT_PATH", true, "")
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	samlKeyPath, err := internal.GetEnvAs("SAML_KEY_PATH", true, "")
+	samlKeyPath, err := GetEnvAs("SAML_KEY_PATH", true, "")
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	rootUrl, err := internal.GetEnvAs("ROOT_URL", true, "")
+	rootUrl, err := GetEnvAs("ROOT_URL", true, "")
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	entityID, err := internal.GetEnvAs("ENTITY_ID", true, "")
+	entityID, err := GetEnvAs("ENTITY_ID", true, "")
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	redirectUrlAfterLogin, err := internal.GetEnvAs("REDIRECT_URL_AFTER_LOGIN", true, "")
+	redirectUrlAfterLogin, err := GetEnvAs("REDIRECT_URL_AFTER_LOGIN", true, "")
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	redirectUrlAfterLogout, err := internal.GetEnvAs("REDIRECT_URL_AFTER_LOGOUT", true, "")
+	redirectUrlAfterLogout, err := GetEnvAs("REDIRECT_URL_AFTER_LOGOUT", true, "")
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	accessTokenKey, err := internal.GetEnvAs("ACCESS_TOKEN_KEY", true, "")
+	accessTokenKey, err := GetEnvAs("ACCESS_TOKEN_KEY", true, "")
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	refreshTokenKey, err := internal.GetEnvAs("REFRESH_TOKEN_KEY", true, "")
+	refreshTokenKey, err := GetEnvAs("REFRESH_TOKEN_KEY", true, "")
 	if err != nil {
 		errs = append(errs, err)
 	}

@@ -8,12 +8,12 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"fxtester/internal/config"
-	"fxtester/internal/security"
+	"fxtester/internal"
 	"fxtester/middleware"
 	"fxtester/openapi/gen"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/crewjam/saml"
 	"github.com/crewjam/saml/samlsp"
@@ -27,7 +27,7 @@ type BarService struct {
 
 func NewBarService() (*BarService, error) {
 	// idPのメタデータを取得するURLをパースする
-	idpMetadataURL, err := url.Parse(config.GetConfig().IdpMetadataURL)
+	idpMetadataURL, err := url.Parse(internal.GetConfig().IdpMetadataURL)
 	if err != nil {
 		return nil, err
 	}
@@ -37,12 +37,12 @@ func NewBarService() (*BarService, error) {
 		return nil, err
 	}
 
-	rootURL, err := url.Parse(config.GetConfig().RootUrl)
+	rootURL, err := url.Parse(internal.GetConfig().RootUrl)
 	if err != nil {
 		return nil, err
 	}
 
-	keyPair, err := tls.LoadX509KeyPair(config.GetConfig().SamlCertPath, config.GetConfig().SamlKeyPath)
+	keyPair, err := tls.LoadX509KeyPair(internal.GetConfig().SamlCertPath, internal.GetConfig().SamlKeyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -52,11 +52,11 @@ func NewBarService() (*BarService, error) {
 	}
 
 	opts := samlsp.Options{
-		EntityID:           config.GetConfig().EntityID,
+		EntityID:           internal.GetConfig().EntityID,
 		URL:                *rootURL,
 		IDPMetadata:        idpMetadata,
 		Key:                keyPair.PrivateKey.(*rsa.PrivateKey),
-		DefaultRedirectURI: config.GetConfig().RedirectUrlAfterLogin,
+		DefaultRedirectURI: internal.GetConfig().RedirectUrlAfterLogin,
 		Certificate:        keyPair.Leaf,
 		SignRequest:        false,
 	}
@@ -73,13 +73,24 @@ func NewBarService() (*BarService, error) {
 // (DELETE /api/auth)
 func (s *BarService) DeleteApiAuth(ctx echo.Context) error {
 	fmt.Println("DeleteApiAuth: ", ctx.Request().Cookies())
-	security.DeleteSession(ctx.Response())
+	internal.DeleteSession(ctx.Response())
 	return nil
 }
 
 // (GET /api/auth)
 func (s *BarService) GetApiAuth(ctx echo.Context) error {
-	return nil
+	accessToken, err := internal.GetAccessToken(*ctx.Request())
+	if err != nil {
+		return ctx.JSON(http.StatusNotFound, struct{}{})
+	}
+	claims, err := internal.VerifyAccessToken(accessToken)
+	if err != nil {
+		return ctx.JSON(http.StatusNotFound, struct{}{})
+	}
+	expiresAt := time.Unix(claims.ExpiresAt, 0)
+	return ctx.JSON(http.StatusOK, gen.AuthStatus{
+		Expires: expiresAt.UTC().Format(time.RFC3339),
+	})
 }
 
 // (POST /api/auth)
@@ -96,7 +107,7 @@ func (s *BarService) PostApiAuth(ctx echo.Context) error {
 
 	// TODO refreshTokenをDBに格納
 
-	expires, err := security.CreateSession(ctx.Response().Writer, reqBody.Id)
+	expires, err := internal.CreateSession(ctx.Response().Writer, reqBody.Id)
 	if err != nil {
 		logger.WithError(err).Error("failed to create session")
 		return ctx.JSON(http.StatusInternalServerError, struct{}{})
@@ -229,7 +240,7 @@ func (s *BarService) PostApiSamlAcs(ctx echo.Context) error {
 
 	if url, err := url.Parse(redirectURI); err != nil {
 		ctx.Logger().Fatal("failed3 !!!!", err)
-	} else if _, exists := config.GetConfig().BlacklistRedirectUrls[url.Path]; exists {
+	} else if _, exists := internal.GetConfig().BlacklistRedirectUrls[url.Path]; exists {
 		// redirectのループを回避するための処理
 		redirectURI = s.serviceProvider.DefaultRedirectURI
 	}
@@ -239,13 +250,13 @@ func (s *BarService) PostApiSamlAcs(ctx echo.Context) error {
 
 // (POST /api/saml/slo)
 func (s *BarService) PostApiSamlSlo(ctx echo.Context) error {
-	return ctx.Redirect(http.StatusFound, config.GetConfig().RedirectUrlAfterLogout)
+	return ctx.Redirect(http.StatusFound, internal.GetConfig().RedirectUrlAfterLogout)
 }
 
 // (DELETE /api/data/features)
 func (s *BarService) DeleteApiDataFeatures(ctx echo.Context) error {
 	logger := middleware.GetLogger(ctx)
-	logger.Println("called DeleteDataFeatures", config.GetConfig())
+	logger.Println("called DeleteDataFeatures", internal.GetConfig())
 
 	var reqBody gen.DeleteApiDataFeaturesJSONBody
 	decoder := json.NewDecoder(ctx.Request().Body)
