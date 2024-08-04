@@ -27,6 +27,28 @@ func ArrayMap[INPUT any, OUTPUT any](conv func(v INPUT) OUTPUT, values []INPUT) 
 	return out
 }
 
+func ArrayMapSkip[INPUT any, OUTPUT any](conv func(v INPUT) (cv OUTPUT, isSkip bool), values []INPUT) []OUTPUT {
+	out := []OUTPUT{}
+	for _, v := range values {
+		if cv, isSkip := conv(v); !isSkip {
+			out = append(out, cv)
+		}
+	}
+	return out
+}
+
+func Set[T comparable](values []T) []T {
+	m := map[T]struct{}{}
+	results := []T{}
+	for _, v := range values {
+		if _, ok := m[v]; !ok {
+			results = append(results, v)
+			m[v] = struct{}{}
+		}
+	}
+	return results
+}
+
 func GetEnvAs[T uint16 | int | string](envName string, required bool, defaultValue T) (T, error) {
 	var v T
 	var envValue string

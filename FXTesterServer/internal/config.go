@@ -27,6 +27,7 @@ type Config struct {
 	BlacklistRedirectUrls    map[string]struct{}
 	AccessTokenKey           string
 	RefreshTokenKey          string
+	DictFilePath             string
 }
 
 var once sync.Once
@@ -143,6 +144,11 @@ func loadConfig() (*Config, error) {
 		errs = append(errs, err)
 	}
 
+	dictFilePath, err := GetEnvAs("DICT_FILE_PATH", true, "")
+	if err != nil {
+		errs = append(errs, err)
+	}
+
 	if 0 < len(errs) {
 		return nil, errors.Join(errs...)
 	}
@@ -166,5 +172,6 @@ func loadConfig() (*Config, error) {
 		RedirectUrlAfterLogout:   redirectUrlAfterLogout,
 		AccessTokenKey:           accessTokenKey,
 		RefreshTokenKey:          refreshTokenKey,
+		DictFilePath:             dictFilePath,
 	}, nil
 }
