@@ -1,6 +1,7 @@
-package security
+package internal
 
 import (
+	"errors"
 	"net/http"
 	"time"
 )
@@ -9,6 +10,8 @@ const (
 	NAME_ACCESS_TOKEN  = "access_token"
 	NAME_REFRESH_TOKEN = "refresh_token"
 )
+
+var ErrAuth = errors.New("auth error")
 
 func CreateSession(w http.ResponseWriter, userId string) (string, error) {
 	now := time.Now()
@@ -76,6 +79,9 @@ func GetAccessToken(r http.Request) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if cookie.Value == "" {
+		return "", ErrAuth
+	}
 	return cookie.Value, nil
 }
 
@@ -83,6 +89,9 @@ func GetRefreshToken(r http.Request) (string, error) {
 	cookie, err := r.Cookie(NAME_REFRESH_TOKEN)
 	if err != nil {
 		return "", err
+	}
+	if cookie.Value == "" {
+		return "", ErrAuth
 	}
 	return cookie.Value, nil
 }

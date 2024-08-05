@@ -66,6 +66,7 @@ services:
       - REDIRECT_URL_AFTER_LOGOUT=${DC_REDIRECT_URL_AFTER_LOGOUT}
       - ACCESS_TOKEN_KEY=${DC_ACCESS_TOKEN_KEY}
       - REFRESH_TOKEN_KEY=${DC_REFRESH_TOKEN_KEY}
+      - DICT_FILE_PATH=${DC_DICT_FILE_PATH}
     depends_on:
       - keycloak
       - fx-tester-db
