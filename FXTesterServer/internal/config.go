@@ -76,7 +76,7 @@ func GetConfig() *Config {
 
 func loadConfig() *Config {
 	// 環境変数からプロジェクトパスを取得
-	projectPath, err := GetEnvAs("PROJECT_PATH", true, "")
+	projectPath, err := GetEnvAs("PROJECT_PATH", false, "")
 	if err != nil {
 		panic(fmt.Errorf("environment variable PROJECT_PATH couldn't be obtained: %v", err))
 	}
