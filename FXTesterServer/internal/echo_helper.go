@@ -30,7 +30,7 @@ func GetLocales(ctx echo.Context) []string {
 				// 予期しない設定がAccept-Languageに設定されている場合
 				return nil, true
 			} else if langQValues[2] == "" {
-				// 重み値が指定されている場合
+				// 重み値が指定されていない場合
 				return &struct {
 					lang string
 					q    float64
