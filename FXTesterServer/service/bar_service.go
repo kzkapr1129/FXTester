@@ -2,17 +2,12 @@ package service
 
 import (
 	"bytes"
-	"context"
-	"crypto/rsa"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"fxtester/internal"
 	"fxtester/internal/gen"
 	"fxtester/internal/middleware"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/crewjam/saml"
@@ -26,48 +21,7 @@ type BarService struct {
 }
 
 func NewBarService() (*BarService, error) {
-	// idPのメタデータを取得するURLをパースする
-	idpMetadataURL, err := url.Parse(internal.GetConfig().IdpMetadataURL)
-	if err != nil {
-		return nil, err
-	}
-	// idPのメタデータを取得
-	idpMetadata, err := samlsp.FetchMetadata(context.Background(), http.DefaultClient, *idpMetadataURL)
-	if err != nil {
-		return nil, err
-	}
-
-	rootURL, err := url.Parse(internal.GetConfig().RootUrl)
-	if err != nil {
-		return nil, err
-	}
-
-	keyPair, err := tls.LoadX509KeyPair(internal.GetConfig().SamlCertPath, internal.GetConfig().SamlKeyPath)
-	if err != nil {
-		return nil, err
-	}
-	keyPair.Leaf, err = x509.ParseCertificate(keyPair.Certificate[0])
-	if err != nil {
-		return nil, err
-	}
-
-	opts := samlsp.Options{
-		EntityID:           internal.GetConfig().EntityID,
-		URL:                *rootURL,
-		IDPMetadata:        idpMetadata,
-		Key:                keyPair.PrivateKey.(*rsa.PrivateKey),
-		DefaultRedirectURI: internal.GetConfig().RedirectUrlAfterLogin,
-		Certificate:        keyPair.Leaf,
-		SignRequest:        false,
-	}
-	serviceProvider := samlsp.DefaultServiceProvider(opts)
-	serviceProvider.AcsURL = *rootURL.ResolveReference(&url.URL{Path: "/api/saml/acs"})
-	requestTracker := samlsp.DefaultRequestTracker(opts, &serviceProvider)
-
-	return &BarService{
-		serviceProvider: serviceProvider,
-		requestTracker:  requestTracker,
-	}, nil
+	return &BarService{}, nil
 }
 
 // (DELETE /api/auth)
@@ -185,72 +139,12 @@ func (s *BarService) GetApiSamlLogout(ctx echo.Context) error {
 
 // (POST /api/saml/acs)
 func (s *BarService) PostApiSamlAcs(ctx echo.Context) error {
-	err := ctx.Request().ParseForm()
-	if err != nil {
-		ctx.Logger().Error(err)
-		return ctx.JSON(http.StatusBadRequest, struct{}{})
-	}
-
-	possibleRequestIDs := []string{}
-	if s.serviceProvider.AllowIDPInitiated {
-		possibleRequestIDs = append(possibleRequestIDs, "")
-	}
-
-	trackedRequests := s.requestTracker.GetTrackedRequests(ctx.Request())
-	for _, tr := range trackedRequests {
-		possibleRequestIDs = append(possibleRequestIDs, tr.SAMLRequestID)
-	}
-
-	assertion, err := s.serviceProvider.ParseResponse(ctx.Request(), possibleRequestIDs)
-	if err != nil {
-		ctx.Logger().Error(err)
-		return ctx.JSON(http.StatusBadRequest, struct{}{})
-	}
-
-	fmt.Println("Issuer: ", assertion.Issuer.Value)
-	for _, attributeStatement := range assertion.AttributeStatements {
-		for _, attribute := range attributeStatement.Attributes {
-			if attribute.FriendlyName == "username" {
-				for _, value := range attribute.Values {
-					fmt.Println("username is ", value.Value)
-				}
-			}
-		}
-	}
-
-	redirectURI := s.serviceProvider.DefaultRedirectURI
-	if trackedRequestIndex := ctx.Request().Form.Get("RelayState"); trackedRequestIndex != "" {
-		trackedRequest, err := s.requestTracker.GetTrackedRequest(ctx.Request(), trackedRequestIndex)
-		if err != nil {
-			if err == http.ErrNoCookie && s.serviceProvider.AllowIDPInitiated {
-				if uri := ctx.Request().Form.Get("RelayState"); uri != "" {
-					redirectURI = uri
-				}
-			} else {
-				ctx.Logger().Fatal("failed1 !!!!", err)
-			}
-		} else {
-			if err := s.requestTracker.StopTrackingRequest(ctx.Response().Writer, ctx.Request(), trackedRequestIndex); err != nil {
-				ctx.Logger().Fatal("failed2 !!!!", err)
-			}
-
-			redirectURI = trackedRequest.URI
-		}
-	}
-
-	if url, err := url.Parse(redirectURI); err != nil {
-		ctx.Logger().Fatal("failed3 !!!!", err)
-	} else if _, exists := internal.GetConfig().BlacklistRedirectUrls[url.Path]; exists {
-		// redirectのループを回避するための処理
-		redirectURI = s.serviceProvider.DefaultRedirectURI
-	}
-
-	return ctx.Redirect(http.StatusFound, redirectURI)
+	return nil
 }
 
 // (POST /api/saml/slo)
 func (s *BarService) PostApiSamlSlo(ctx echo.Context) error {
-	return ctx.Redirect(http.StatusFound, internal.GetConfig().RedirectUrlAfterLogout)
+	return nil
 }
 
 // (DELETE /api/data/features)

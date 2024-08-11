@@ -1,177 +1,112 @@
 package internal
 
 import (
-	"errors"
+	"bytes"
 	"fmt"
-	"strings"
+	"html/template"
+	"os"
 	"sync"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	Port                     uint16
-	DSN                      string
-	DatabaseName             string
-	AllowOrigins             []string
-	MaxIdleConnections       int
-	MaxOpenConnections       int
-	ConnectionMaxLifeTimeSec int
-	IdpMetadataURL           string
-	SslCertPath              string
-	SslKeyPath               string
-	SamlCertPath             string
-	SamlKeyPath              string
-	RootUrl                  string
-	EntityID                 string
-	RedirectUrlAfterLogin    string
-	RedirectUrlAfterLogout   string
-	BlacklistRedirectUrls    map[string]struct{}
-	AccessTokenKey           string
-	RefreshTokenKey          string
-	DictFilePath             string
+	// 一般設定
+	Server struct {
+		// ポート番号
+		Port uint16 `yaml:"port"`
+		// CORSで接続を許可するオリジン一覧
+		AllowOrigins []string `yaml:"allowOrigins"`
+		// SSL設定
+		Ssl struct {
+			// SSLの有効化
+			IsEnabled bool `yaml:"isEnabled"`
+			// 証明書ファイルのパス
+			CertPath string `yaml:"certPath"`
+			// キーファイルのパス
+			KeyPath string `yaml:"keyPath"`
+		} `yaml:"ssl"`
+		JwtKey struct {
+			AccessToken  string `yaml:"accessToken"`
+			RefreshToken string `yaml:"refreshToken"`
+		} `yaml:"jwtKey"`
+	} `yaml:"server"`
+
+	// DB設定
+	Db struct {
+		// データベース名前(e.g. postgres)
+		Name string `yaml:"name"`
+		// Data Source Name
+		Dsn string `yaml:"dsn"`
+		// 最大アイドル時間
+		MaxIdleConnections int `yaml:"maxIdleConnections"`
+		// 最大オープン接続数
+		MaxOpenConnections int `yaml:"maxOpenConnections"`
+		// 最大ライフタイム(秒単位)
+		MaxLifeTimeBySec int `yaml:"maxLifeTimeBySec"`
+	} `yaml:"db"`
+
+	// SAML設定
+	Saml struct {
+		// idpのmetadata.xmlを返却するURLもしくはファイルパス
+		IdpMetadataUrl string `yaml:"idpMetadataUrl"`
+		// ルートURL (リダイレクト先のベースURL)
+		RootURL string `yaml:"rootURL"`
+		// SAMLクライアントのEntityId
+		EntityId string `yaml:"entityId"`
+	} `yaml:"saml"`
+
+	// 辞書設定
+	Dict struct {
+		// 辞書ファイルのパス
+		Path string `yaml:"path"`
+	} `yaml:"dict"`
 }
 
 var once sync.Once
 var config *Config = &Config{}
 
 func GetConfig() *Config {
-	var err error
 	f := func() {
-		config, err = loadConfig()
-		if err != nil {
-			panic(fmt.Errorf("failed to loadConfig: %w", err))
-		}
+		config = loadConfig()
 	}
 	once.Do(f)
 	return config
 }
 
-func loadConfig() (*Config, error) {
-	errs := []error{}
-
-	port, err := GetEnvAs[uint16]("PORT", false, 8080)
+func loadConfig() *Config {
+	// 環境変数からプロジェクトパスを取得
+	projectPath, err := GetEnvAs("PROJECT_PATH", true, "")
 	if err != nil {
-		errs = append(errs, err)
+		panic(fmt.Errorf("environment variable PROJECT_PATH couldn't be obtained: %v", err))
 	}
-
-	databaseName, err := GetEnvAs("DATABASE_NAME", true, "")
+	// プロジェクトパスをベースに設定ファイルへのパスを取得
+	configPath := fmt.Sprintf("%s/settings/config.yaml", projectPath)
+	// 設定ファイルの読み込み
+	configFileBytes, err := os.ReadFile(configPath)
 	if err != nil {
-		errs = append(errs, err)
+		panic(fmt.Sprintf("failed to read %s: %v", configPath, err))
 	}
 
-	var allowOrigins []string
-	if v, err := GetEnvAs("ALLOW_ORIGINS", false, "https://127.0.0.1:3000,https://localhost:3000"); err != nil {
-		errs = append(errs, err)
-	} else {
-		allowOrigins = strings.Split(v, ",")
-		if len(allowOrigins) <= 0 {
-			allowOrigins = []string{"*"}
-		}
-	}
-
-	dsn, err := GetEnvAs("DSN", true, "")
+	// テンプレートの作成
+	tmp, err := template.New("template").Parse(string(configFileBytes))
 	if err != nil {
-		errs = append(errs, err)
+		panic(fmt.Errorf("failed to parse template: %v", err))
 	}
 
-	maxIdleConnections, err := GetEnvAs("MAX_IDLE_CONNECTIONS", false, 10)
-	if err != nil {
-		errs = append(errs, err)
+	// テンプレートの適用
+	a := bytes.NewBufferString("")
+	if err := tmp.Execute(a, map[string]string{
+		"pwd": projectPath,
+	}); err != nil {
+		panic(fmt.Errorf("failed to execute template: %v", err))
 	}
 
-	maxOpenConnections, err := GetEnvAs("MAX_OPEN_CONNECTIONS", false, 10)
-	if err != nil {
-		errs = append(errs, err)
+	// ConfigのUnmarshal
+	config := &Config{}
+	if err = yaml.Unmarshal(a.Bytes(), config); err != nil {
+		panic(fmt.Errorf("failed to unmarshal: %v", err))
 	}
 
-	connectionMaxLifeTimeSec, err := GetEnvAs("CONNECTION_MAX_LIFE_TIME_SEC", false, 10)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	idpMetadataUrl, err := GetEnvAs("IDP_METADATA_URL", true, "")
-	fmt.Println("idpMetadataUrl: ", idpMetadataUrl)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	sslCertPath, err := GetEnvAs("SSL_CERT_PATH", true, "")
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	sslKeyPath, err := GetEnvAs("SSL_KEY_PATH", true, "")
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	samlCertPath, err := GetEnvAs("SAML_CERT_PATH", true, "")
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	samlKeyPath, err := GetEnvAs("SAML_KEY_PATH", true, "")
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	rootUrl, err := GetEnvAs("ROOT_URL", true, "")
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	entityID, err := GetEnvAs("ENTITY_ID", true, "")
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	redirectUrlAfterLogin, err := GetEnvAs("REDIRECT_URL_AFTER_LOGIN", true, "")
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	redirectUrlAfterLogout, err := GetEnvAs("REDIRECT_URL_AFTER_LOGOUT", true, "")
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	accessTokenKey, err := GetEnvAs("ACCESS_TOKEN_KEY", true, "")
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	refreshTokenKey, err := GetEnvAs("REFRESH_TOKEN_KEY", true, "")
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	dictFilePath, err := GetEnvAs("DICT_FILE_PATH", true, "")
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	if 0 < len(errs) {
-		return nil, errors.Join(errs...)
-	}
-
-	return &Config{
-		Port:                     port,
-		DSN:                      dsn,
-		DatabaseName:             databaseName,
-		AllowOrigins:             allowOrigins,
-		MaxIdleConnections:       maxIdleConnections,
-		MaxOpenConnections:       maxOpenConnections,
-		ConnectionMaxLifeTimeSec: connectionMaxLifeTimeSec,
-		IdpMetadataURL:           idpMetadataUrl,
-		SslCertPath:              sslCertPath,
-		SslKeyPath:               sslKeyPath,
-		SamlCertPath:             samlCertPath,
-		SamlKeyPath:              samlKeyPath,
-		RootUrl:                  rootUrl,
-		EntityID:                 entityID,
-		RedirectUrlAfterLogin:    redirectUrlAfterLogin,
-		RedirectUrlAfterLogout:   redirectUrlAfterLogout,
-		AccessTokenKey:           accessTokenKey,
-		RefreshTokenKey:          refreshTokenKey,
-		DictFilePath:             dictFilePath,
-	}, nil
+	return config
 }

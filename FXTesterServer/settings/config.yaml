@@ -1,0 +1,29 @@
+
+# 一般設定
+server:
+  port: 8000
+  allowOrigins:
+    - https://127.0.0.1:3000
+    - https://localhost:3000
+  ssl:
+    isEnabled: true
+    certPath: "{{ .pwd }}/settings/cert/fx-tester.cert.pem"
+    keyPath: "{{ .pwd }}/settings/cert/fx-tester.key.pem"
+  jwtKey:
+    accessToken: 1q2w3e4r
+    refreshToken: poiadbadf25
+# DB設定
+db:
+  name: postgres
+  dsn: "user=FIXME password=FIXME dbname=FIXME sslmode=FIXME search_path=FIXME"
+  maxIdleConnections: 100
+  maxOpenConnections: 100
+  maxLifeTimeBySec: 60000
+# SAML設定
+saml:
+  idpMetadataUrl: http://localhost:28080/realms/master/protocol/saml/descriptor
+  rootURL: https://localhost:3000/
+  entityId: https://localhost:3000/
+# 辞書設定
+dict:
+  path: "{{ .pwd }}/settings/dict.yaml"

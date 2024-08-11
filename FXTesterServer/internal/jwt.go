@@ -22,7 +22,7 @@ func GenerateAccessToken(userId string, expires time.Time) (string, error) {
 			IssuedAt:  time.Now().UTC().Unix(),
 		},
 	}
-	return generateJWT(claims, GetConfig().AccessTokenKey)
+	return generateJWT(claims, GetConfig().Server.JwtKey.AccessToken)
 }
 
 // GenerateRefreshToken リフレッシュトークンの生成
@@ -34,7 +34,7 @@ func GenerateRefreshToken(userId string, expires time.Time) (string, error) {
 			IssuedAt:  time.Now().UTC().Unix(),
 		},
 	}
-	return generateJWT(claims, GetConfig().RefreshTokenKey)
+	return generateJWT(claims, GetConfig().Server.JwtKey.RefreshToken)
 }
 
 func generateJWT(claims jwt.Claims, jwtKey string) (string, error) {
@@ -51,7 +51,7 @@ func VerifyAccessToken(tokenStr string) (*Claims, error) {
 	claims := &Claims{}
 
 	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-		return GetConfig().AccessTokenKey, nil
+		return GetConfig().Server.JwtKey.AccessToken, nil
 	})
 
 	if err != nil {

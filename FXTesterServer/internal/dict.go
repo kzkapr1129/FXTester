@@ -29,7 +29,7 @@ var dict = struct {
 
 func LoadDict() {
 	dict.once.Do(func() {
-		fn := GetConfig().DictFilePath
+		fn := GetConfig().Dict.Path
 		file, err := os.Open(fn)
 		if err != nil {
 			panic("failed to open " + fn)
