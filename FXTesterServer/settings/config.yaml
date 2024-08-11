@@ -21,9 +21,26 @@ db:
   maxLifeTimeBySec: 60000
 # SAML設定
 saml:
+  # keycloakの設定
+  keycloak:
+    adminUser:
+      username: admin
+      password: admin
+    baseURL: "http://localhost:28080"
+    realmName: my-realm
+    # keycloak初期化と同時に追加するユーザ
+    newUsers:
+      - username: test
+        password: test
+        email: test@fxtester.com
+    # 新規追加するクライアントのID
+    newClientId: fx-tester-client
   idpMetadataUrl: http://localhost:28080/realms/master/protocol/saml/descriptor
   rootURL: https://localhost:3000/
   entityId: https://localhost:3000/
+  validRedirectURI: "http://localhost:1234/test1"
+  validPostLogoutRedirectURI: "http://localhost:1234/test2"
+  logoutServicePostBindingURL: "http://localhost:1234/test3"
 # 辞書設定
 dict:
   path: "{{ .pwd }}/settings/dict.yaml"

@@ -304,9 +304,9 @@ func (c *client) UpdateProtocolMapper(realm string, clientScopeId string, protoc
 	return nil
 }
 
-func (c *client) CreateUser(realm string, username string, password string) error {
+func (c *client) CreateUser(realm string, username string, email string, password string) error {
 	user := UserRepresentation{
-		Email:         "test@hoge.co.jp",
+		Email:         email,
 		Username:      username,
 		Enabled:       true,
 		EmailVerified: false,
@@ -348,7 +348,7 @@ func (c *client) CreateUser(realm string, username string, password string) erro
 		return err
 	}
 
-	if res.status != 200 {
+	if res.status != 201 {
 		return fmt.Errorf("invalid response: %d", res.status)
 	}
 

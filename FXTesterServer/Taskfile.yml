@@ -21,6 +21,13 @@ tasks:
         if [ ! -f ".envrc" ]; then
           cp envrc_sample .envrc
         fi
+      - task: init:keycloak
+
+  init:keycloak:
+    cmds:
+      - task: dc:up:keycloak
+      - sleep 10 # keycloakの立ち上げ待ち
+      - go run ./cmd/keycloak
 
   # 自動テスト
   test:
