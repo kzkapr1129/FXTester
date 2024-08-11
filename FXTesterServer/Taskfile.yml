@@ -27,6 +27,16 @@ tasks:
     cmds:
       - go test -v ./...
 
+  # ビルド関連: openapi定義からgo実装の自動生成
+  build:openapi:
+    cmds:
+      - oapi-codegen -package gen doc/openapi/bar.yaml > internal/gen/bar.gen.go
+
+  # ビルド関連: 証明書の生成
+  build:cert:
+    cmds:
+      - mkcert -cert-file settings/cert/fx-tester.cert.pem -key-file settings/cert/fx-tester.key.pem fx-tester-be fx-tester-fe keycloak  192.168.254.10 192.168.254.20 192.168.254.30 192.168.254.40 localhost 127.0.0.1
+
   # コンテナ起動関連のコマンド
   dc:up:
     cmds:
@@ -56,13 +66,3 @@ tasks:
   dc:clean:system:
     cmds:
       - docker image prune -a
-
-  # openapi関連のコマンド
-  openapi:build:
-    cmds:
-      - oapi-codegen -package gen doc/openapi/bar.yaml > internal/gen/bar.gen.go
-
-  # 証明書関連のコマンド
-  cert:build:
-    cmds:
-      - mkcert -cert-file cert/fx-tester.cert.pem -key-file cert/fx-tester.key.pem fx-tester-be fx-tester-fe keycloak  192.168.254.10 192.168.254.20 192.168.254.30 192.168.254.40 localhost 127.0.0.1
