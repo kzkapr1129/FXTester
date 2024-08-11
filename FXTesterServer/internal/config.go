@@ -48,12 +48,36 @@ type Config struct {
 
 	// SAML設定
 	Saml struct {
+		Keycloak struct {
+			// keycloakのログインユーザの情報 (e.g. admin)
+			AdminUser struct {
+				Username string `yaml:"username"`
+				Password string `yaml:"password"`
+			} `yaml:"adminUser"`
+			// keycloakのURL (e.g. http://localhost:28080)
+			BaseURL string `yaml:"baseURL"`
+			// realmの名前
+			RealmName string `yaml:"realmName"`
+			NewUsers  []struct {
+				Username string `yaml:"username"`
+				Password string `yaml:"password"`
+				Email    string `yaml:"email"`
+			} `yaml:"newUsers"`
+			NewClientId string `yaml:"newClientId"`
+		} `yaml:"keycloak"`
+
 		// idpのmetadata.xmlを返却するURLもしくはファイルパス
 		IdpMetadataUrl string `yaml:"idpMetadataUrl"`
 		// ルートURL (リダイレクト先のベースURL)
 		RootURL string `yaml:"rootURL"`
 		// SAMLクライアントのEntityId
 		EntityId string `yaml:"entityId"`
+		// Valid redirect URI
+		ValidRedirectURI string `yaml:"validRedirectURI"`
+		// Valid post logout redirect URI
+		ValidPostLogoutRedirectURI string `yaml:"validPostLogoutRedirectURI"`
+		// Logout Service POST Binding URL
+		LogoutServicePostBindingURL string `yaml:"logoutServicePostBindingURL"`
 	} `yaml:"saml"`
 
 	// 辞書設定
