@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"fxtester/internal"
 	"fxtester/internal/gen"
-	"fxtester/middleware"
+	"fxtester/internal/middleware"
 	"net/http"
 	"net/url"
 	"time"

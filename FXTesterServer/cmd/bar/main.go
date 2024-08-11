@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"fxtester/internal"
 	"fxtester/internal/gen"
-	fxtm "fxtester/middleware"
+	fxtm "fxtester/internal/middleware"
 	"fxtester/service"
 	"net/http"
 
