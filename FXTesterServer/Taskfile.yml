@@ -22,6 +22,11 @@ tasks:
           cp envrc_sample .envrc
         fi
 
+  # 自動テスト
+  test:
+    cmds:
+      - go test -v ./...
+
   # コンテナ起動関連のコマンド
   dc:up:
     cmds:
