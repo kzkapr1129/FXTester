@@ -1,28 +1,17 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"fxtester/internal"
 	"fxtester/internal/gen"
-	fxtm "fxtester/internal/middleware"
 	"fxtester/service"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/sirupsen/logrus"
 )
 
 func main() {
-	logLevel := flag.String("log-level", "debug", "ログレベル")
-	logfile := flag.String("log-out", "", "ログ出力先ファイル名")
-	flag.Parse()
-
-	// ログの初期化
-	closer := internal.InitLogger(*logfile, *logLevel)
-	defer closer()
-
 	e := echo.New()
 
 	// サービスの初期化
@@ -38,7 +27,7 @@ func main() {
 		AllowCredentials: true,
 		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodDelete},
 	}))
-	e.Use(fxtm.NewLogger(logrus.StandardLogger()))
+	e.Use(internal.ErrorHandler())
 
 	// サービスの開始
 	gen.RegisterHandlers(e, hdr)

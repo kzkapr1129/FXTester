@@ -58,6 +58,15 @@ func LoadDict() {
 	})
 }
 
+func GetDicts(ctx echo.Context, arguments []interface{}) []interface{} {
+	return ArrayMap(func(input interface{}) interface{} {
+		if v, ok := input.(string); ok && strings.Contains(v, ".") {
+			return GetDict(ctx, strings.Split(v, "."))
+		}
+		return input
+	}, arguments)
+}
+
 func GetDict(ctx echo.Context, keys []string, arguments ...interface{}) string {
 	// 辞書の読み込み(初回のみ)
 	LoadDict()

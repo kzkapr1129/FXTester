@@ -5,14 +5,14 @@ dict:
       en: Name
 
   messages:
-    E0001:
+    InternalError:
       ja: |
         インターナルエラーが発生しました。
         (エラーコード: 0x%x)
       en: |
         インターナルエラーが発生しました(要英訳)。
         (エラーコード: 0x%x)
-    E0002:
+    ForbiddenCharacterError:
       ja: |
         %sに禁止文字が指定されました。
         (エラーコード: 0x%x)

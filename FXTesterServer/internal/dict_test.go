@@ -29,7 +29,7 @@ func Test_GetDict(t *testing.T) {
 					rec := httptest.NewRecorder()
 					return echo.New().NewContext(req, rec)
 				}(),
-				errCode: "E0001",
+				errCode: "InternalError",
 				parameter: []interface{}{
 					0x123,
 				},
@@ -45,7 +45,7 @@ func Test_GetDict(t *testing.T) {
 					rec := httptest.NewRecorder()
 					return echo.New().NewContext(req, rec)
 				}(),
-				errCode: "E0001",
+				errCode: "InternalError",
 				parameter: []interface{}{
 					0x123,
 				},
@@ -61,7 +61,7 @@ func Test_GetDict(t *testing.T) {
 					rec := httptest.NewRecorder()
 					return echo.New().NewContext(req, rec)
 				}(),
-				errCode: "E0001",
+				errCode: "InternalError",
 				parameter: []interface{}{
 					0x123,
 				},
@@ -77,7 +77,7 @@ func Test_GetDict(t *testing.T) {
 					rec := httptest.NewRecorder()
 					return echo.New().NewContext(req, rec)
 				}(),
-				errCode: "E0001",
+				errCode: "InternalError",
 				parameter: []interface{}{
 					0x123,
 				},
@@ -93,7 +93,7 @@ func Test_GetDict(t *testing.T) {
 					rec := httptest.NewRecorder()
 					return echo.New().NewContext(req, rec)
 				}(),
-				errCode: "E0001",
+				errCode: "InternalError",
 				parameter: []interface{}{
 					0x123,
 				},
@@ -109,7 +109,7 @@ func Test_GetDict(t *testing.T) {
 					rec := httptest.NewRecorder()
 					return echo.New().NewContext(req, rec)
 				}(),
-				errCode: "E0001",
+				errCode: "InternalError",
 				parameter: []interface{}{
 					0x123,
 				},
