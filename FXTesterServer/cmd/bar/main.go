@@ -4,8 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"fxtester/internal"
+	"fxtester/internal/gen"
 	fxtm "fxtester/middleware"
-	"fxtester/openapi/gen"
 	"fxtester/service"
 	"net/http"
 

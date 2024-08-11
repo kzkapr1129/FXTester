@@ -55,7 +55,7 @@ tasks:
   # openapi関連のコマンド
   openapi:build:
     cmds:
-      - oapi-codegen -package gen openapi/bar.yaml > openapi/gen/bar.gen.go
+      - oapi-codegen -package gen doc/openapi/bar.yaml > internal/gen/bar.gen.go
 
   # 証明書関連のコマンド
   cert:build:
