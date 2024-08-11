@@ -24,7 +24,7 @@ func main() {
 
 	var req keycloak.ClientRepresentation
 	req.Id = "test-client"
-	req.ClientId = internal.GetConfig().EntityID
+	req.ClientId = internal.GetConfig().Saml.EntityId
 	req.Protocol = keycloak.ProtocolSAML
 	req.RedirectUris = []string{"http://localhost:1234/test2"}
 	req.Attributes = map[string]string{

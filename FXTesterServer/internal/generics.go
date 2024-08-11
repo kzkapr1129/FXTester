@@ -54,7 +54,7 @@ func GetEnvAs[T uint16 | int | string](envName string, required bool, defaultVal
 	var envValue string
 	if envValue = os.Getenv(envName); required && envValue == "" {
 		return v, fmt.Errorf("make sure '%s' is specified in the environment variable", envName)
-	} else if envValue == "" {
+	} else if envValue == "" && !required {
 		return defaultValue, nil
 	}
 
