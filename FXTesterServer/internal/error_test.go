@@ -62,7 +62,7 @@ func Test_ErrorHandler(t *testing.T) {
 			wantErr:          false,
 			wantBody:         true,
 			wantErrorCode:    ErrCodeUnknownErrorObject,
-			wantErrorMessage: "インターナルエラーが発生しました。\n(エラーコード: 0x80000001)",
+			wantErrorMessage: "インターナルエラーが発生しました。\n(エラーコード: 0x80000002)",
 		},
 		{
 			name: "test3",
@@ -79,7 +79,7 @@ func Test_ErrorHandler(t *testing.T) {
 			wantErr:          false,
 			wantBody:         true,
 			wantErrorCode:    ErrCodeUnknownErrorCode,
-			wantErrorMessage: "インターナルエラーが発生しました。\n(エラーコード: 0x80000002)",
+			wantErrorMessage: "インターナルエラーが発生しました。\n(エラーコード: 0x80000003)",
 		},
 		{
 			name: "test4",
@@ -96,7 +96,7 @@ func Test_ErrorHandler(t *testing.T) {
 			wantErr:          false,
 			wantBody:         true,
 			wantErrorCode:    ErrCodeForbiddenCharacterError,
-			wantErrorMessage: "testに禁止文字が指定されました。\n(エラーコード: 0x81000003)",
+			wantErrorMessage: "testに禁止文字が指定されました。\n(エラーコード: 0x81010001)",
 		},
 		{
 			name: "test5",
@@ -113,7 +113,7 @@ func Test_ErrorHandler(t *testing.T) {
 			wantErr:          false,
 			wantBody:         true,
 			wantErrorCode:    ErrCodeForbiddenCharacterError,
-			wantErrorMessage: "test2に禁止文字が指定されました。\n(エラーコード: 0x81000003)",
+			wantErrorMessage: "test2に禁止文字が指定されました。\n(エラーコード: 0x81010001)",
 		},
 		{
 			name: "test6",
@@ -130,7 +130,7 @@ func Test_ErrorHandler(t *testing.T) {
 			wantErr:          false,
 			wantBody:         true,
 			wantErrorCode:    ErrCodeForbiddenCharacterError,
-			wantErrorMessage: "testに禁止文字が指定されました。\n(エラーコード: 0x81000003)",
+			wantErrorMessage: "testに禁止文字が指定されました。\n(エラーコード: 0x81010001)",
 		},
 		{
 			name: "test7",
@@ -147,7 +147,7 @@ func Test_ErrorHandler(t *testing.T) {
 			wantErr:          false,
 			wantBody:         true,
 			wantErrorCode:    ErrCodeForbiddenCharacterError,
-			wantErrorMessage: "名前に禁止文字が指定されました。\n(エラーコード: 0x81000003)",
+			wantErrorMessage: "名前に禁止文字が指定されました。\n(エラーコード: 0x81010001)",
 		},
 		{
 			name: "test8",
@@ -164,7 +164,7 @@ func Test_ErrorHandler(t *testing.T) {
 			wantErr:          false,
 			wantBody:         true,
 			wantErrorCode:    ErrCodePanic,
-			wantErrorMessage: "インターナルエラーが発生しました。\n(エラーコード: 0x80000000)",
+			wantErrorMessage: "インターナルエラーが発生しました。\n(エラーコード: 0x80000001)",
 		},
 	}
 
@@ -181,7 +181,7 @@ func Test_ErrorHandler(t *testing.T) {
 				if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
 					t.Errorf("Error in json.Unmarshal: %v", err)
 				} else if tt.wantErrorCode != ErrorCode(res.Code) {
-					t.Errorf("ErrorHandler()()()=%v wantErrorCode=%v", res.Code, tt.wantErrorCode)
+					t.Errorf("ErrorHandler()()()=%v wantErrorCode=0x%x", res.Code, tt.wantErrorCode)
 				} else if tt.wantErrorMessage != res.Message {
 					t.Errorf("ErrorHandler()()()=%v wantErrorMessage=%v", res.Message, tt.wantErrorMessage)
 				}

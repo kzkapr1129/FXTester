@@ -14,6 +14,9 @@ import (
 // エラーコード
 type ErrorCode uint32
 
+// エラータイプ
+type ErrorType uint8
+
 // エラー別詳細設定
 type errorSettings struct {
 	statusCode                int
@@ -21,11 +24,31 @@ type errorSettings struct {
 	isDisplayErrCodeOnMessage bool
 }
 
+/**
+  エラーコードの構成について:
+
+  0x8abbcccc の形式でエラーコードを構成します。
+
+  - a: エラーの原因 (1桁目)
+    - 1: サーバー起因のエラー
+    - 0: クライアント起因のエラー
+
+  - b: エラーメッセージのタイプ (2桁目)
+    - 00: インターナルエラー
+    - その他の値は、随時追加されるタイプ
+
+  - c: エラーの詳細番号 (3桁目以降)
+*/
+
 const (
-	ErrCodePanic                   ErrorCode = 0x80000000
-	ErrCodeUnknownErrorObject      ErrorCode = 0x80000001 // 不明なエラーオブジェクト
-	ErrCodeUnknownErrorCode        ErrorCode = 0x80000002 // 不明なエラーコード
-	ErrCodeForbiddenCharacterError ErrorCode = 0x81000003 // 禁止文字エラー
+	// サーバー起因のエラー
+	ErrCodePanic              ErrorCode = 0x80000001
+	ErrCodeUnknownErrorObject ErrorCode = 0x80000002 // 不明なエラーオブジェクト
+	ErrCodeUnknownErrorCode   ErrorCode = 0x80000003 // 不明なエラーコード
+	ErrCodeConfig             ErrorCode = 0x80000004 // 設定ファイル不備
+
+	// ユーザ起因のエラー
+	ErrCodeForbiddenCharacterError ErrorCode = 0x81010001 // 禁止文字エラー
 )
 
 const (
@@ -33,23 +56,13 @@ const (
 	DictKeyForbiddenCharacterError = "ForbiddenCharacterError" // 辞書キー: 禁止文字エラー
 )
 
-var errSettingsMap = map[ErrorCode]errorSettings{
-	ErrCodePanic: {
+var errSettingsMap = map[ErrorType]errorSettings{
+	0x00: {
 		statusCode:                http.StatusInternalServerError,
 		dictKey:                   DictKeyInternalError,
 		isDisplayErrCodeOnMessage: true,
 	},
-	ErrCodeUnknownErrorObject: {
-		statusCode:                http.StatusInternalServerError,
-		dictKey:                   DictKeyInternalError,
-		isDisplayErrCodeOnMessage: true,
-	},
-	ErrCodeUnknownErrorCode: {
-		statusCode:                http.StatusInternalServerError,
-		dictKey:                   DictKeyInternalError,
-		isDisplayErrCodeOnMessage: true,
-	},
-	ErrCodeForbiddenCharacterError: {
+	0x01: {
 		statusCode:                http.StatusBadRequest,
 		dictKey:                   DictKeyForbiddenCharacterError,
 		isDisplayErrCodeOnMessage: true,
@@ -146,8 +159,27 @@ func logStackTrace(ctx echo.Context) {
 	ctx.Echo().Logger.Error(string(stack))
 }
 
+func extractErrorType(errCode ErrorCode) ErrorType {
+	return ErrorType(((errCode & 0x00FF0000) >> 16) & 0xFF)
+}
+
+func isValidErrorCode(errCode ErrorCode) bool {
+	head := errCode & 0x8F000000
+	if head != 0x81000000 && head != 0x80000000 {
+		return false
+	}
+	if _, ok := errSettingsMap[extractErrorType(errCode)]; !ok {
+		return false
+	}
+	detailCode := errCode & 0x0000FFFF
+	return detailCode != 0x00000000
+}
+
 func makeErrorResponseWithCode(ctx echo.Context, errCode ErrorCode, arguments []interface{}) (int, *gen.Error) {
-	settings := errSettingsMap[errCode]
+	if !isValidErrorCode(errCode) {
+		panic(fmt.Sprintf("invalid error code at makeErrorResponseWithCode: 0x%x", errCode))
+	}
+	settings := errSettingsMap[extractErrorType(errCode)]
 
 	// 不明なエラーオブジェクトの場合、インターナルエラーとして扱う
 	return settings.statusCode, &gen.Error{
@@ -176,8 +208,8 @@ func makeErrorResponse(ctx echo.Context, err error) (int, *gen.Error) {
 
 	errCode := fxtError.ErrCode
 	arguments := fxtError.Arguments
-	settings, ok := errSettingsMap[fxtError.ErrCode]
-	if !ok {
+	settings, ok := errSettingsMap[extractErrorType(fxtError.ErrCode)]
+	if !ok || !isValidErrorCode(errCode) {
 		// 未登録のエラーコードを受け取った場合
 		ctx.Echo().Logger.Errorf("caught invalid Error: %v", fxtError)
 
