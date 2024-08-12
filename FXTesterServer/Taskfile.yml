@@ -21,6 +21,7 @@ tasks:
         if [ ! -f ".envrc" ]; then
           cp envrc_sample .envrc
         fi
+      - task: build:cert
       - task: init:keycloak
 
   init:keycloak:

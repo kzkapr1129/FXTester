@@ -1,2 +1,4 @@
 .DS_Store
 .envrc
+settings/cert/fx-tester.cert.pem
+settings/cert/fx-tester.key.pem
