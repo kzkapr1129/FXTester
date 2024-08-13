@@ -23,9 +23,12 @@ tasks:
         fi
       - task: build:cert
       - task: init:keycloak
+      - task: dc:down:db
+      - task: dc:up:db
 
   init:keycloak:
     cmds:
+      - task: dc:down:keycloak
       - task: dc:up:keycloak
       - sleep 10 # keycloakの立ち上げ待ち
       - go run ./cmd/keycloak
@@ -55,6 +58,14 @@ tasks:
   dc:up:keycloak:
     cmds:
       - docker compose -f docker/compose.yaml up keycloak -d
+  dc:down:db:
+    cmds:
+      - docker compose -f docker/compose.yaml stop fx-tester-db
+      - docker compose -f docker/compose.yaml rm -fsv fx-tester-db
+  dc:down:keycloak:
+    cmds:
+      - docker compose -f docker/compose.yaml stop keycloak
+      - docker compose -f docker/compose.yaml rm -fsv keycloak
   dc:down:
     cmds:
       - docker compose -f docker/compose.yaml down

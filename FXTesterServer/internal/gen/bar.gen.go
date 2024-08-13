@@ -18,6 +18,11 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"
+	"github.com/oapi-codegen/runtime"
+)
+
+const (
+	CookieAuthScopes = "cookieAuth.Scopes"
 )
 
 // Error defines model for Error.
@@ -28,6 +33,56 @@ type Error struct {
 	// Message エラーメッセージ (多言語化対象)
 	Message string `json:"message"`
 }
+
+// ErrorWithTime defines model for ErrorWithTime.
+type ErrorWithTime struct {
+	Err  Error  `json:"err"`
+	Time string `json:"time"`
+}
+
+// SAMLForm defines model for SAMLForm.
+type SAMLForm = string
+
+// SAMLRequest defines model for SAMLRequest.
+type SAMLRequest struct {
+	RelayState  *string `json:"RelayState,omitempty"`
+	SAMLReqeust *string `json:"SAMLReqeust,omitempty"`
+}
+
+// SAMLResponse defines model for SAMLResponse.
+type SAMLResponse struct {
+	RelayState   *string `json:"RelayState,omitempty"`
+	SAMLResponse *string `json:"SAMLResponse,omitempty"`
+}
+
+// GetSamlLoginParams defines parameters for GetSamlLogin.
+type GetSamlLoginParams struct {
+	// XRedirectURL シングルサインオン完了時にリダイレクトさせたいURLを指定する
+	XRedirectURL string `json:"X-Redirect-URL"`
+
+	// XRedirectURLOnError シングルサインオンエラー時にリダイレクトさせたいURLを指定する
+	XRedirectURLOnError string `json:"X-Redirect-URL-On-Error"`
+}
+
+// GetSamlLogoutParams defines parameters for GetSamlLogout.
+type GetSamlLogoutParams struct {
+	// XRedirectURL シングルログアウト完了時にリダイレクトさせたいURLを指定する
+	XRedirectURL string `json:"X-Redirect-URL"`
+
+	// XRedirectURLOnError シングルログアウトのエラー時にリダイレクトさせたいURLを指定する
+	XRedirectURLOnError string `json:"X-Redirect-URL-On-Error"`
+}
+
+// PostSamlSloFormdataBody defines parameters for PostSamlSlo.
+type PostSamlSloFormdataBody struct {
+	union json.RawMessage
+}
+
+// PostSamlAcsFormdataRequestBody defines body for PostSamlAcs for application/x-www-form-urlencoded ContentType.
+type PostSamlAcsFormdataRequestBody = SAMLResponse
+
+// PostSamlSloFormdataRequestBody defines body for PostSamlSlo for application/x-www-form-urlencoded ContentType.
+type PostSamlSloFormdataRequestBody PostSamlSloFormdataBody
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -102,12 +157,28 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// PostSamlAcsWithBody request with any body
+	PostSamlAcsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostSamlAcsWithFormdataBody(ctx context.Context, body PostSamlAcsFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSamlError request
+	GetSamlError(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetSamlLogin request
-	GetSamlLogin(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetSamlLogin(ctx context.Context, params *GetSamlLoginParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSamlLogout request
+	GetSamlLogout(ctx context.Context, params *GetSamlLogoutParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostSamlSloWithBody request with any body
+	PostSamlSloWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostSamlSloWithFormdataBody(ctx context.Context, body PostSamlSloFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-func (c *Client) GetSamlLogin(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetSamlLoginRequest(c.Server)
+func (c *Client) PostSamlAcsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostSamlAcsRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -118,8 +189,147 @@ func (c *Client) GetSamlLogin(ctx context.Context, reqEditors ...RequestEditorFn
 	return c.Client.Do(req)
 }
 
+func (c *Client) PostSamlAcsWithFormdataBody(ctx context.Context, body PostSamlAcsFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostSamlAcsRequestWithFormdataBody(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetSamlError(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSamlErrorRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetSamlLogin(ctx context.Context, params *GetSamlLoginParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSamlLoginRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetSamlLogout(ctx context.Context, params *GetSamlLogoutParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSamlLogoutRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostSamlSloWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostSamlSloRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostSamlSloWithFormdataBody(ctx context.Context, body PostSamlSloFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostSamlSloRequestWithFormdataBody(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NewPostSamlAcsRequestWithFormdataBody calls the generic PostSamlAcs builder with application/x-www-form-urlencoded body
+func NewPostSamlAcsRequestWithFormdataBody(server string, body PostSamlAcsFormdataRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	bodyStr, err := runtime.MarshalForm(body, nil)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = strings.NewReader(bodyStr.Encode())
+	return NewPostSamlAcsRequestWithBody(server, "application/x-www-form-urlencoded", bodyReader)
+}
+
+// NewPostSamlAcsRequestWithBody generates requests for PostSamlAcs with any type of body
+func NewPostSamlAcsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/saml/acs")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetSamlErrorRequest generates requests for GetSamlError
+func NewGetSamlErrorRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/saml/error")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetSamlLoginRequest generates requests for GetSamlLogin
-func NewGetSamlLoginRequest(server string) (*http.Request, error) {
+func NewGetSamlLoginRequest(server string, params *GetSamlLoginParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -141,6 +351,117 @@ func NewGetSamlLoginRequest(server string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithLocation("simple", false, "X-Redirect-URL", runtime.ParamLocationHeader, params.XRedirectURL)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Redirect-URL", headerParam0)
+
+		var headerParam1 string
+
+		headerParam1, err = runtime.StyleParamWithLocation("simple", false, "X-Redirect-URL-On-Error", runtime.ParamLocationHeader, params.XRedirectURLOnError)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Redirect-URL-On-Error", headerParam1)
+
+	}
+
+	return req, nil
+}
+
+// NewGetSamlLogoutRequest generates requests for GetSamlLogout
+func NewGetSamlLogoutRequest(server string, params *GetSamlLogoutParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/saml/logout")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithLocation("simple", false, "X-Redirect-URL", runtime.ParamLocationHeader, params.XRedirectURL)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Redirect-URL", headerParam0)
+
+		var headerParam1 string
+
+		headerParam1, err = runtime.StyleParamWithLocation("simple", false, "X-Redirect-URL-On-Error", runtime.ParamLocationHeader, params.XRedirectURLOnError)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-Redirect-URL-On-Error", headerParam1)
+
+	}
+
+	return req, nil
+}
+
+// NewPostSamlSloRequestWithFormdataBody calls the generic PostSamlSlo builder with application/x-www-form-urlencoded body
+func NewPostSamlSloRequestWithFormdataBody(server string, body PostSamlSloFormdataRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	bodyStr, err := runtime.MarshalForm(body, nil)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = strings.NewReader(bodyStr.Encode())
+	return NewPostSamlSloRequestWithBody(server, "application/x-www-form-urlencoded", bodyReader)
+}
+
+// NewPostSamlSloRequestWithBody generates requests for PostSamlSlo with any type of body
+func NewPostSamlSloRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/saml/slo")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -188,8 +509,68 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// PostSamlAcsWithBodyWithResponse request with any body
+	PostSamlAcsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostSamlAcsResponse, error)
+
+	PostSamlAcsWithFormdataBodyWithResponse(ctx context.Context, body PostSamlAcsFormdataRequestBody, reqEditors ...RequestEditorFn) (*PostSamlAcsResponse, error)
+
+	// GetSamlErrorWithResponse request
+	GetSamlErrorWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSamlErrorResponse, error)
+
 	// GetSamlLoginWithResponse request
-	GetSamlLoginWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSamlLoginResponse, error)
+	GetSamlLoginWithResponse(ctx context.Context, params *GetSamlLoginParams, reqEditors ...RequestEditorFn) (*GetSamlLoginResponse, error)
+
+	// GetSamlLogoutWithResponse request
+	GetSamlLogoutWithResponse(ctx context.Context, params *GetSamlLogoutParams, reqEditors ...RequestEditorFn) (*GetSamlLogoutResponse, error)
+
+	// PostSamlSloWithBodyWithResponse request with any body
+	PostSamlSloWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostSamlSloResponse, error)
+
+	PostSamlSloWithFormdataBodyWithResponse(ctx context.Context, body PostSamlSloFormdataRequestBody, reqEditors ...RequestEditorFn) (*PostSamlSloResponse, error)
+}
+
+type PostSamlAcsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r PostSamlAcsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostSamlAcsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetSamlErrorResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ErrorWithTime
+	JSONDefault  *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSamlErrorResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSamlErrorResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type GetSamlLoginResponse struct {
@@ -214,13 +595,157 @@ func (r GetSamlLoginResponse) StatusCode() int {
 	return 0
 }
 
+type GetSamlLogoutResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSONDefault  *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSamlLogoutResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSamlLogoutResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostSamlSloResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r PostSamlSloResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostSamlSloResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// PostSamlAcsWithBodyWithResponse request with arbitrary body returning *PostSamlAcsResponse
+func (c *ClientWithResponses) PostSamlAcsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostSamlAcsResponse, error) {
+	rsp, err := c.PostSamlAcsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostSamlAcsResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostSamlAcsWithFormdataBodyWithResponse(ctx context.Context, body PostSamlAcsFormdataRequestBody, reqEditors ...RequestEditorFn) (*PostSamlAcsResponse, error) {
+	rsp, err := c.PostSamlAcsWithFormdataBody(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostSamlAcsResponse(rsp)
+}
+
+// GetSamlErrorWithResponse request returning *GetSamlErrorResponse
+func (c *ClientWithResponses) GetSamlErrorWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSamlErrorResponse, error) {
+	rsp, err := c.GetSamlError(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSamlErrorResponse(rsp)
+}
+
 // GetSamlLoginWithResponse request returning *GetSamlLoginResponse
-func (c *ClientWithResponses) GetSamlLoginWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetSamlLoginResponse, error) {
-	rsp, err := c.GetSamlLogin(ctx, reqEditors...)
+func (c *ClientWithResponses) GetSamlLoginWithResponse(ctx context.Context, params *GetSamlLoginParams, reqEditors ...RequestEditorFn) (*GetSamlLoginResponse, error) {
+	rsp, err := c.GetSamlLogin(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseGetSamlLoginResponse(rsp)
+}
+
+// GetSamlLogoutWithResponse request returning *GetSamlLogoutResponse
+func (c *ClientWithResponses) GetSamlLogoutWithResponse(ctx context.Context, params *GetSamlLogoutParams, reqEditors ...RequestEditorFn) (*GetSamlLogoutResponse, error) {
+	rsp, err := c.GetSamlLogout(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSamlLogoutResponse(rsp)
+}
+
+// PostSamlSloWithBodyWithResponse request with arbitrary body returning *PostSamlSloResponse
+func (c *ClientWithResponses) PostSamlSloWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostSamlSloResponse, error) {
+	rsp, err := c.PostSamlSloWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostSamlSloResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostSamlSloWithFormdataBodyWithResponse(ctx context.Context, body PostSamlSloFormdataRequestBody, reqEditors ...RequestEditorFn) (*PostSamlSloResponse, error) {
+	rsp, err := c.PostSamlSloWithFormdataBody(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostSamlSloResponse(rsp)
+}
+
+// ParsePostSamlAcsResponse parses an HTTP response from a PostSamlAcsWithResponse call
+func ParsePostSamlAcsResponse(rsp *http.Response) (*PostSamlAcsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostSamlAcsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetSamlErrorResponse parses an HTTP response from a GetSamlErrorWithResponse call
+func ParseGetSamlErrorResponse(rsp *http.Response) (*GetSamlErrorResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSamlErrorResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ErrorWithTime
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseGetSamlLoginResponse parses an HTTP response from a GetSamlLoginWithResponse call
@@ -249,11 +774,65 @@ func ParseGetSamlLoginResponse(rsp *http.Response) (*GetSamlLoginResponse, error
 	return response, nil
 }
 
+// ParseGetSamlLogoutResponse parses an HTTP response from a GetSamlLogoutWithResponse call
+func ParseGetSamlLogoutResponse(rsp *http.Response) (*GetSamlLogoutResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSamlLogoutResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostSamlSloResponse parses an HTTP response from a PostSamlSloWithResponse call
+func ParsePostSamlSloResponse(rsp *http.Response) (*PostSamlSloResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostSamlSloResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-
+	// idPから送信されたSAMLアサーションを受け取るエンドポイント
+	// (POST /saml/acs)
+	PostSamlAcs(ctx echo.Context) error
+	// SAMLログインのエラー詳細を返却するエンドポイント
+	// (GET /saml/error)
+	GetSamlError(ctx echo.Context) error
+	// SAMLシングルサインオンのリクエストを送信するためのHTMLを生成して返すエンドポイント
 	// (GET /saml/login)
-	GetSamlLogin(ctx echo.Context) error
+	GetSamlLogin(ctx echo.Context, params GetSamlLoginParams) error
+	// SAMLシングルログアウトのリクエストを送信するためのHTMLを生成して返すエンドポイント
+	// (GET /saml/logout)
+	GetSamlLogout(ctx echo.Context, params GetSamlLogoutParams) error
+	// SAMLシングルログアウトのアサーションを受け取るエンドポイント
+	// (POST /saml/slo)
+	PostSamlSlo(ctx echo.Context) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -261,12 +840,130 @@ type ServerInterfaceWrapper struct {
 	Handler ServerInterface
 }
 
+// PostSamlAcs converts echo context to params.
+func (w *ServerInterfaceWrapper) PostSamlAcs(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PostSamlAcs(ctx)
+	return err
+}
+
+// GetSamlError converts echo context to params.
+func (w *ServerInterfaceWrapper) GetSamlError(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetSamlError(ctx)
+	return err
+}
+
 // GetSamlLogin converts echo context to params.
 func (w *ServerInterfaceWrapper) GetSamlLogin(ctx echo.Context) error {
 	var err error
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetSamlLoginParams
+
+	headers := ctx.Request().Header
+	// ------------- Required header parameter "X-Redirect-URL" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Redirect-URL")]; found {
+		var XRedirectURL string
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-Redirect-URL, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithLocation("simple", false, "X-Redirect-URL", runtime.ParamLocationHeader, valueList[0], &XRedirectURL)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-Redirect-URL: %s", err))
+		}
+
+		params.XRedirectURL = XRedirectURL
+	} else {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Header parameter X-Redirect-URL is required, but not found"))
+	}
+	// ------------- Required header parameter "X-Redirect-URL-On-Error" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Redirect-URL-On-Error")]; found {
+		var XRedirectURLOnError string
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-Redirect-URL-On-Error, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithLocation("simple", false, "X-Redirect-URL-On-Error", runtime.ParamLocationHeader, valueList[0], &XRedirectURLOnError)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-Redirect-URL-On-Error: %s", err))
+		}
+
+		params.XRedirectURLOnError = XRedirectURLOnError
+	} else {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Header parameter X-Redirect-URL-On-Error is required, but not found"))
+	}
+
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetSamlLogin(ctx)
+	err = w.Handler.GetSamlLogin(ctx, params)
+	return err
+}
+
+// GetSamlLogout converts echo context to params.
+func (w *ServerInterfaceWrapper) GetSamlLogout(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(CookieAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetSamlLogoutParams
+
+	headers := ctx.Request().Header
+	// ------------- Required header parameter "X-Redirect-URL" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Redirect-URL")]; found {
+		var XRedirectURL string
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-Redirect-URL, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithLocation("simple", false, "X-Redirect-URL", runtime.ParamLocationHeader, valueList[0], &XRedirectURL)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-Redirect-URL: %s", err))
+		}
+
+		params.XRedirectURL = XRedirectURL
+	} else {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Header parameter X-Redirect-URL is required, but not found"))
+	}
+	// ------------- Required header parameter "X-Redirect-URL-On-Error" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Redirect-URL-On-Error")]; found {
+		var XRedirectURLOnError string
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for X-Redirect-URL-On-Error, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithLocation("simple", false, "X-Redirect-URL-On-Error", runtime.ParamLocationHeader, valueList[0], &XRedirectURLOnError)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter X-Redirect-URL-On-Error: %s", err))
+		}
+
+		params.XRedirectURLOnError = XRedirectURLOnError
+	} else {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Header parameter X-Redirect-URL-On-Error is required, but not found"))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetSamlLogout(ctx, params)
+	return err
+}
+
+// PostSamlSlo converts echo context to params.
+func (w *ServerInterfaceWrapper) PostSamlSlo(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(CookieAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PostSamlSlo(ctx)
 	return err
 }
 
@@ -298,25 +995,45 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
+	router.POST(baseURL+"/saml/acs", wrapper.PostSamlAcs)
+	router.GET(baseURL+"/saml/error", wrapper.GetSamlError)
 	router.GET(baseURL+"/saml/login", wrapper.GetSamlLogin)
+	router.GET(baseURL+"/saml/logout", wrapper.GetSamlLogout)
+	router.POST(baseURL+"/saml/slo", wrapper.PostSamlSlo)
 
 }
 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/2xTXUvcQBT9K3LbB4WwifpS8mahLRaFwgp9cPdhzN7NjiSTdGbWKhJwk1ba6kMpYrGU",
-	"ilTq1tIvRCrW6o8Z19V/UWbiNl31JZmPO/eee865i+BFYRwxZFKAuwjCa2BIzPIe5xHXi5hHMXJJ0Rx7",
-	"UQ31v4bC4zSWNGLggkr3VXakstcqO+osP7/I2qq1c/rnpLvWVq23qvVJtZ6pdEWlbZV91pHpnol/CRbg",
-	"PAnjAMEFZ/6O4zjOMFhQj3hIJLjQpEyOjoAFciHWMZRJ9JFDYkGIQhD/RjS9MtmWyjKV/jYlDwYGO9vv",
-	"zttL57sfOqvrne/H5z+3hvoQqHRbZXsqPTGPX6nsS5GrtdrdOOyubZqGjs13Uy2lFTZ4vS13oNfLUIUV",
-	"4IXklPmQJBZwfNKkHGvgTuecFv1U/8VHM7PoSRMv0GtyKhfKWqFcihkkHPlYUzaK3f0ebw8fT4GV66kz",
-	"5bcFkoaUMSQ6MWX1SL8PqIdMGDYZMW8mx6c0zZJKw81dwsvI56insc4hFznZwyWn5Oi4KEZGYgoujJoj",
-	"C2IiGwapLUgY2EHkU6a3PsrropXHJidUa0e1vqn0lxHhh6F/v6fJrvm+uVhf6eys9ETYAFOYE51lvAYu",
-	"PEBZJmEwYYppnkUcMZEzNuI4uYeZRGYwSJyXdkOGQeF+vSocUWk6zqin7WhWWGH5if3/0Q0KJ9aV/s6+",
-	"fuwcHHT309PDZTC3ddIM5BU8JI4D6plu7FkRsX5YtznWwYVbdjG19uXI2vm83lD49PDF2fvctbtmDC/N",
-	"mrv5bCPt8xe409p/xBfamdpcA2OPxqGaXAnqt990Nanqa659YW6bPLi0mWvbM4SXxFPi+8hLNLLnhiGp",
-	"Jn8DAAD//ydWIcd8BAAA",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

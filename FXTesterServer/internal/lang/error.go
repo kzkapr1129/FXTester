@@ -1,8 +1,9 @@
-package internal
+package lang
 
 import (
 	"errors"
 	"fmt"
+	"fxtester/internal/common"
 	"fxtester/internal/gen"
 	"net/http"
 	"runtime"
@@ -42,10 +43,36 @@ type errorSettings struct {
 
 const (
 	// サーバー起因のエラー
-	ErrCodePanic              ErrorCode = 0x80000001
-	ErrCodeUnknownErrorObject ErrorCode = 0x80000002 // 不明なエラーオブジェクト
-	ErrCodeUnknownErrorCode   ErrorCode = 0x80000003 // 不明なエラーコード
-	ErrCodeConfig             ErrorCode = 0x80000004 // 設定ファイル不備
+	ErrCodePanic                  ErrorCode = 0x80000001
+	ErrCodeUnknownErrorObject     ErrorCode = 0x80000002 // 不明なエラーオブジェクト
+	ErrCodeUnknownErrorCode       ErrorCode = 0x80000003 // 不明なエラーコード
+	ErrCodeConfig                 ErrorCode = 0x80000004 // 設定ファイル不備
+	ErrCodeDisk                   ErrorCode = 0x80000005 // ファイル読み込みエラー
+	ErrInvalidIdpMetadata         ErrorCode = 0x80000006 // idPのメタデータの解析に失敗した場合
+	ErrDownloadIdpMetadata        ErrorCode = 0x80000007 // idpのメタデータのダウンロードに失敗した場合
+	ErrSSOAuthnRequest            ErrorCode = 0x80000008 // SSOのAuthnRequest作成に失敗した場合
+	ErrSSOHtmlWriting             ErrorCode = 0x80000009 // SSOのHTML書き込み中のエラー
+	ErrCookieNone                 ErrorCode = 0x80000010 // クッキーが見つからなかった場合のエラー
+	ErrCodeSSOParseResponse       ErrorCode = 0x80000011 // SAMLレスポンスのパースに失敗した場合のエラー
+	ErrRequestParse               ErrorCode = 0x80000012 // parseFormの呼び出しエラー
+	ErrUnexpectedAssertion        ErrorCode = 0x80000013 // 予期しないSAMLアサーションを取得した場合のエラー
+	ErrDBOpen                     ErrorCode = 0x80000014 // DBのOpenエラー
+	ErrDBBegin                    ErrorCode = 0x80000015 // DBのトランザクション開始エラー
+	ErrDBQuery                    ErrorCode = 0x80000016 // DBのクエリエラー
+	ErrDBQueryResult              ErrorCode = 0x80000017 // DBのクエリ結果のエラー
+	ErrSession                    ErrorCode = 0x80000018 // 不正なセッションエラー (TODO クライアントエラー化)
+	ErrSLOAuthnRequest            ErrorCode = 0x80000019 // SLOのAuthnRequest作成に失敗した場合
+	ErrSLOValidation              ErrorCode = 0x80000020 // SLOのSAMLResponseのバリデーションに失敗した場合
+	ErrJWTSign                    ErrorCode = 0x80000021 // JWTのSignに失敗した場合
+	ErrBase64SamlRequest          ErrorCode = 0x80000022 // SAMLリクエストのbase64デコード失敗
+	ErrBase64SamlResponse         ErrorCode = 0x80000023 // SAMLレスポンスのbase64デコード失敗
+	ErrUnmarshalSamlRequest       ErrorCode = 0x80000024 // SAMLリクエストのUnmarshal失敗
+	ErrUnmarshalSamlResponse      ErrorCode = 0x80000025 // SAMLリクエストのUnmarshal失敗
+	ErrSamlLogoutResponseCreation ErrorCode = 0x80000026 // SAMLログアウトレスポンスの作成失敗
+	ErrEmptyNameId                ErrorCode = 0x80000027 // NameIdが未指定
+	ErrInvalidNameId              ErrorCode = 0x80000028 // アサーションに格納されたNameIdとセッションに格納されたEmailが不一致
+	ErrEmptyLogoutRequestId       ErrorCode = 0x80000029 // LogoutRequest.IDが未指定
+	ErrOperationNotAllow          ErrorCode = 0x80000030 // 許可されていない操作
 
 	// ユーザ起因のエラー
 	ErrCodeForbiddenCharacterError ErrorCode = 0x81010001 // 禁止文字エラー
@@ -70,15 +97,22 @@ var errSettingsMap = map[ErrorType]errorSettings{
 }
 
 type FxtError struct {
-	ErrCode   ErrorCode
-	Arguments []interface{}
-	cause     error
+	ErrCode    ErrorCode
+	Arguments  []interface{}
+	Stacktrace string
+	cause      error
 }
 
 func NewFxtError(errorCode ErrorCode, arguments ...interface{}) *FxtError {
+	// スタックトレースの取得
+	stack := make([]byte, 4*1024)
+	length := runtime.Stack(stack, true)
+	stack = stack[:length]
+
 	return &FxtError{
-		ErrCode:   errorCode,
-		Arguments: arguments,
+		ErrCode:    errorCode,
+		Arguments:  arguments,
+		Stacktrace: string(stack),
 	}
 }
 
@@ -96,10 +130,10 @@ func (e *FxtError) Unwrap() error {
 }
 
 func (e *FxtError) Error() string {
-	arguments := strings.Join(ArrayMap(func(input interface{}) string {
+	arguments := strings.Join(common.ArrayMap(func(input interface{}) string {
 		return fmt.Sprintf("\"%v\"", input)
 	}, e.Arguments), ",")
-	return fmt.Sprintf("{\"code\": \"0x%x\", \"arguments\": [%s]}", e.ErrCode, arguments)
+	return fmt.Sprintf("{\"code\": \"0x%x\", \"arguments\": [%s], \"case\": \"%s\"}", e.ErrCode, arguments, e.cause)
 }
 
 // CauseFxtError 原因となったFxtErrorを返却します
@@ -144,7 +178,7 @@ func ErrorHandler() echo.MiddlewareFunc {
 			err := next(c)
 			if err != nil {
 				// エラーレスポンス返却
-				statusCode, errObject := makeErrorResponse(c, err)
+				statusCode, errObject := MakeErrorResponse(c, err)
 				return c.JSON(statusCode, errObject)
 			}
 			return nil
@@ -198,7 +232,7 @@ func makeErrorResponseWithCode(ctx echo.Context, errCode ErrorCode, arguments []
 	}
 }
 
-func makeErrorResponse(ctx echo.Context, err error) (int, *gen.Error) {
+func MakeErrorResponse(ctx echo.Context, err error) (int, *gen.Error) {
 	fxtError := CauseFxtError(err)
 	if fxtError == nil {
 		// 不明なエラーオブジェクトの場合
@@ -211,7 +245,7 @@ func makeErrorResponse(ctx echo.Context, err error) (int, *gen.Error) {
 	settings, ok := errSettingsMap[extractErrorType(fxtError.ErrCode)]
 	if !ok || !isValidErrorCode(errCode) {
 		// 未登録のエラーコードを受け取った場合
-		ctx.Echo().Logger.Errorf("caught invalid Error: %v", fxtError)
+		ctx.Echo().Logger.Errorf("caught invalid Code: %v", fxtError)
 
 		//　エラー内容の置き換え
 		settings = errorSettings{

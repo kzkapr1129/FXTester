@@ -9,13 +9,10 @@ server:
     isEnabled: true
     certPath: "{{ .pwd }}/settings/cert/fx-tester.cert.pem"
     keyPath: "{{ .pwd }}/settings/cert/fx-tester.key.pem"
-  jwtKey:
-    accessToken: 1q2w3e4r
-    refreshToken: poiadbadf25
 # DB設定
 db:
   name: postgres
-  dsn: "user=FIXME password=FIXME dbname=FIXME sslmode=FIXME search_path=FIXME"
+  dsn: "host=localhost port=5432 user=app_user password=app_user dbname=fxtester_db sslmode=disable search_path=fxtester_schema"
   maxIdleConnections: 100
   maxOpenConnections: 100
   maxLifeTimeBySec: 60000
@@ -35,12 +32,13 @@ saml:
         email: test@fxtester.com
     # 新規追加するクライアントのID
     newClientId: fx-tester-client
-  idpMetadataUrl: http://localhost:28080/realms/master/protocol/saml/descriptor
+  idpMetadataUrl: http://localhost:28080/realms/my-realm/protocol/saml/descriptor
   rootURL: https://localhost:3000/
   entityId: https://localhost:3000/
-  validRedirectURI: "http://localhost:1234/test1"
-  validPostLogoutRedirectURI: "http://localhost:1234/test2"
-  logoutServicePostBindingURL: "http://localhost:1234/test3"
+  backendURL: https://localhost:8000/
+  validRedirectURI: "https://localhost:8000/*"
+  validPostLogoutRedirectURI: "https://localhost:8000/*"
+  logoutServicePostBindingURL: "https://localhost:8000/saml/slo"
 # 辞書設定
 dict:
   path: "{{ .pwd }}/settings/dict.yaml"

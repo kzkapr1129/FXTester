@@ -1,4 +1,4 @@
 {
-    "ignoreWords": ["fxtester", "keycloak", "labstack", "openapi", "crewjam", "samlsp"],
+    "ignoreWords": ["fxtester", "keycloak", "labstack", "openapi", "crewjam", "samlsp", "cssp", "gommon", "safesql"],
     "ignorePaths": ["./**/*.yaml", "./**/*.yml"]
   }

@@ -8,11 +8,42 @@ servers:
   - url: http://bar.swagger.io/v1
 components:
   securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+    cookieAuth:         # arbitrary name for the security scheme; will be used in the "security" key later
+      type: apiKey
+      in: cookie
+      name: access_token
   schemas:
+    SAMLForm:
+      type: string
+      example: |
+        example: |
+          <!DOCTYPE html>
+          <html>
+            <body>
+              <form method="POST" id="SAMLRequestForm">
+                <input name="SAMLRequest" ・・・>
+              </form>
+              <script>document.getElementById("SAMLRequestForm").submit()</script>
+            </body>
+          </html>
+    SAMLRequest:
+      type: object
+      properties:
+        SAMLReqeust:
+          type: string
+          example: "PHNhbWxwOlJlc3BvbnNlIHhtbG5zOnNhbWxwPSJ1cm46b2FzaXM6bmFtZXM6d・・・"
+        RelayState:
+          type: string
+          example: "xxx"
+    SAMLResponse:
+      type: object
+      properties:
+        SAMLResponse:
+          type: string
+          example: "PHNhbWxwOlJlc3BvbnNlIHhtbG5zOnNhbWxwPSJ1cm46b2FzaXM6bmFtZXM6d・・・"
+        RelayState:
+          type: string
+          example: "xxx"
     Error:
       type: object
       properties:
@@ -30,6 +61,17 @@ components:
       required:
         - code
         - message
+    ErrorWithTime:
+      type: object
+      properties:
+        err:
+          $ref: "#/components/schemas/Error"
+        time:
+          type: string
+          example: "2024-08-14T11:19:12+09:00"
+      required:
+        - err
+        - time
 
 security: # 全てのエンドポイントに対してbearerの指定を要求する
   - bearerAuth: []
@@ -39,20 +81,158 @@ paths:
     get:
       tags:
         - Auth API
-      description: SAMLでのシングルサインオンを開始します
-      security: [] # JWTトークンの指定無効化
+      summary: SAMLシングルサインオンのリクエストを送信するためのHTMLを生成して返すエンドポイント
+      security: []
+      parameters:
+        - name: X-Redirect-URL
+          in: header
+          required: true
+          description: シングルサインオン完了時にリダイレクトさせたいURLを指定する
+          schema:
+            type: string
+            example: "https://xxxxx/"
+        - name: X-Redirect-URL-On-Error
+          in: header
+          required: true
+          description: シングルサインオンエラー時にリダイレクトさせたいURLを指定する
+          schema:
+            type: string
+            example: "https://xxxxx/"
+      responses:
+        '200':
+          description: 正常終了
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: sso_token=xxxx; Path=/saml/acs; HttpOnly
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/SAMLForm"
+        default:
+          description: シングルサインオンが許可されなかった場合
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /saml/acs:
+    post:
+      tags:
+        - Auth API
+      summary: idPから送信されたSAMLアサーションを受け取るエンドポイント
+      security: []
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/SAMLResponse"
+      responses:
+        '302':
+          description: |
+             正常終了<br>
+             (エラーが発生した場合はHttpヘッダのLocationに格納されれているURLにURLパラメータ(saml_error=1)が付与される)
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: access_token=xxxx; Path=/; HttpOnly, refresh_token=xxxx; Path=/TODO; HttpOnly, saml_error_token=xxxx; Path=/saml/error; HttpOnly
+            Location:
+              schema:
+                type: string
+                example: "https://xxxxx/login?saml_error=1"
+              description: リダイレクト先のURL
+  /saml/logout:
+    get:
+      tags:
+        - Auth API
+      summary: SAMLシングルログアウトのリクエストを送信するためのHTMLを生成して返すエンドポイント
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: X-Redirect-URL
+          in: header
+          required: true
+          description: シングルログアウト完了時にリダイレクトさせたいURLを指定する
+          schema:
+            type: string
+            example: "https://xxxxx/"
+        - name: X-Redirect-URL-On-Error
+          in: header
+          required: true
+          description: シングルログアウトのエラー時にリダイレクトさせたいURLを指定する
+          schema:
+            type: string
+            example: "https://xxxxx/"
+      responses:
+        '200':
+          description: 正常終了
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: slo_token=xxxx; Path=/saml/slo; HttpOnly
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/SAMLForm"
+        default:
+          description: シングルサインオンが許可されなかった場合
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /saml/slo:
+    post:
+      tags:
+        - Auth API
+      summary: SAMLシングルログアウトのアサーションを受け取るエンドポイント
+      security:
+        - cookieAuth: []
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/SAMLRequest"
+                - $ref: "#/components/schemas/SAMLResponse"
+      responses:
+        '200':
+          description: |
+            他SP起点のシングルログアウトが正常終了<br>
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/SAMLForm"
+        '302':
+          description: |
+             本SP起点のシングルログアウトが正常終了<br>
+             (エラーが発生した場合はHttpヘッダのLocationに格納されれているURLにURLパラメータ(saml_error=1)が付与される)
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: saml_error_token=xxxx; Path=/saml/error; HttpOnly
+            Location:
+              schema:
+                type: string
+                example: "https://xxxxx/login?saml_error=1"
+              description: リダイレクト先のURL
+  /saml/error:
+    get:
+      tags:
+        - Auth API
+      summary: SAMLログインのエラー詳細を返却するエンドポイント
+      security: []
       responses:
         '200':
           description: 正常終了
           content:
-            text/html:
+            application/json:
               schema:
-                type: string
-                example: |
-                  <form>
-                  </form>
+                $ref: "#/components/schemas/ErrorWithTime"
         default:
-          description: 予期しないエラー発生時
+          description: 予期しないエラーが発生した場合
           content:
             application/json:
               schema:

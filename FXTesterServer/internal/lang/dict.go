@@ -1,7 +1,8 @@
-package internal
+package lang
 
 import (
 	"fmt"
+	"fxtester/internal/common"
 	"io"
 	"os"
 	"regexp"
@@ -29,7 +30,7 @@ var dict = struct {
 
 func LoadDict() {
 	dict.once.Do(func() {
-		fn := GetConfig().Dict.Path
+		fn := common.GetConfig().Dict.Path
 		file, err := os.Open(fn)
 		if err != nil {
 			panic("failed to open " + fn)
@@ -59,7 +60,7 @@ func LoadDict() {
 }
 
 func GetDicts(ctx echo.Context, arguments []interface{}) []interface{} {
-	return ArrayMap(func(input interface{}) interface{} {
+	return common.ArrayMap(func(input interface{}) interface{} {
 		if v, ok := input.(string); ok && strings.Contains(v, ".") {
 			return GetDict(ctx, strings.Split(v, "."))
 		}
@@ -88,7 +89,7 @@ func GetDict(ctx echo.Context, keys []string, arguments ...interface{}) string {
 	}
 
 	// Accept-Languageからロケーションコードを取得する
-	locs := Set(ArrayMap(func(v string) string {
+	locs := common.Set(common.ArrayMap(func(v string) string {
 		tmp := v
 		for _, r := range dict.data.regexes {
 			// Aliasの変換条件に一致する場合はAliasに変換する

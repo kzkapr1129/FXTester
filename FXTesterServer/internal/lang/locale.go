@@ -1,6 +1,7 @@
-package internal
+package lang
 
 import (
+	"fxtester/internal/common"
 	"regexp"
 	"sort"
 	"strconv"
@@ -9,7 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-var echo_helper = struct {
+var locale = struct {
 	re *regexp.Regexp
 }{
 	re: regexp.MustCompile(`((?:[a-zA-Z]+|\*)(?:-[a-zA-Z]+)?)(?:\s*;\s*q\s*=\s*([0-9]\.[0-9]))?`),
@@ -19,14 +20,14 @@ func GetLocales(ctx echo.Context) []string {
 	defaultLocales := []string{"ja"}
 
 	if v := ctx.Request().Header.Get("Accept-Language"); v != "" {
-		acceptLanguages := ArrayMapSkip(func(input string) (*struct {
+		acceptLanguages := common.ArrayMapSkip(func(input string) (*struct {
 			lang string
 			q    float64
 		}, bool) {
 			if langQ := strings.TrimSpace(input); langQ == "" {
 				// Accept-Languageに空文字の設定が格納されている場合
 				return nil, true
-			} else if langQValues := echo_helper.re.FindStringSubmatch(langQ); len(langQValues) != 3 {
+			} else if langQValues := locale.re.FindStringSubmatch(langQ); len(langQValues) != 3 {
 				// 予期しない設定がAccept-Languageに設定されている場合
 				return nil, true
 			} else if langQValues[2] == "" {
@@ -67,7 +68,7 @@ func GetLocales(ctx echo.Context) []string {
 			return iv.q > jv.q
 		})
 
-		return ArrayMap(func(input *struct {
+		return common.ArrayMap(func(input *struct {
 			lang string
 			q    float64
 		}) string {
