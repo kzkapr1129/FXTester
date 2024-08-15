@@ -7,16 +7,16 @@ import (
 	"time"
 )
 
-type IProvider interface {
+type IDbWrapper interface {
 	Init() error
-	GetHandle() *sql.DB
+	GetDb() *sql.DB
 }
 
-type Provider struct {
+type DbWrapper struct {
 	db *sql.DB
 }
 
-func (d *Provider) Init() error {
+func (d *DbWrapper) Init() error {
 	db, err := sql.Open(common.GetConfig().Db.Name, common.GetConfig().Db.Dsn)
 	if err != nil {
 		return lang.NewFxtError(lang.ErrDBOpen).SetCause(err)
@@ -35,7 +35,7 @@ func (d *Provider) Init() error {
 	return nil
 }
 
-func (d *Provider) GetHandle() *sql.DB {
+func (d *DbWrapper) GetDb() *sql.DB {
 	if d.db == nil {
 		panic("DB hasn't initialized yet")
 	}

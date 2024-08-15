@@ -55,7 +55,7 @@ type SamlClient struct {
 }
 
 // NewSamlClient SAMLクライアントを生成します
-func NewSamlClient(reader ISamlClientReader, dbProvider db.IProvider) *SamlClient {
+func NewSamlClient(reader ISamlClientReader, dbProvider db.IDbWrapper) *SamlClient {
 	return &SamlClient{
 		reader: reader,
 		dao:    db.NewUserEntityDao(dbProvider),
@@ -182,11 +182,31 @@ func (s *SamlClient) ExecuteSamlAcs(ctx echo.Context) (lastError error) {
 	// アサーションのNameIdとemailとする (keycloakの設定が正しければemailになっている)
 	email := assertion.Subject.NameID.Value
 
-	return func() error {
-		// TODO ユーザが存在するか確認する
+	return func() (lastError error) {
+		// トランザクション開始
+		if err := s.dao.Begin(); err != nil {
+			return err
+		}
+
+		defer func() {
+			// エラーの有無に応じてRollbackまたはCommitを実行する
+			if lastError != nil {
+				err := s.dao.Rollback()
+				if err != nil {
+					ctx.Logger().Error(err)
+				}
+			} else {
+				err := s.dao.Commit()
+				if err != nil {
+					lastError = err
+				}
+			}
+		}()
+
+		// ユーザが存在するか確認する
 		entity, err := s.dao.SelectWithEmail(email)
 		if err != nil {
-			// TODO ユーザが存在しない場合はユーザを作成する
+			// ユーザが存在しない場合はユーザを作成する
 			entity, err = s.dao.CreateUser(email)
 			if err != nil {
 				return err

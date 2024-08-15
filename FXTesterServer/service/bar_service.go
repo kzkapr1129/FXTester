@@ -10,15 +10,15 @@ import (
 
 type BarService struct {
 	samlClient *saml.SamlClient
-	dbProvider db.IProvider
+	dbWrapper  db.IDbWrapper
 }
 
 func NewBarService() *BarService {
-	dbProvider := &db.Provider{}
-	client := saml.NewSamlClient(&saml.SamlClientReader{}, dbProvider)
+	dbWrapper := &db.DbWrapper{}
+	client := saml.NewSamlClient(&saml.SamlClientReader{}, dbWrapper)
 	return &BarService{
 		samlClient: client,
-		dbProvider: dbProvider,
+		dbWrapper:  dbWrapper,
 	}
 }
 
@@ -28,7 +28,7 @@ func (b *BarService) Init() error {
 		return err
 	}
 	// DBハンドルプロバイダーの初期化
-	if err := b.dbProvider.Init(); err != nil {
+	if err := b.dbWrapper.Init(); err != nil {
 		return err
 	}
 	return nil
