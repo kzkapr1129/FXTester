@@ -20,7 +20,7 @@ type AuthSessionPayload struct {
 	Email  string `json:"email"`
 }
 
-func CreateAuthSession(w http.ResponseWriter, userId int64, email string) error {
+func CreateAuthSession(w http.ResponseWriter, userId int64, email string, onNewToken func(accessToken, refreshToken string) error) error {
 	now := time.Now()
 	expiresAccessToken := now.Add(15 * time.Minute)
 	expiresRefreshToken := now.Add(7 * 24 * time.Hour)
@@ -37,6 +37,10 @@ func CreateAuthSession(w http.ResponseWriter, userId int64, email string) error 
 
 	refreshToken, err := GenerateToken(payload, expiresRefreshToken, RefreshTokenSecret)
 	if err != nil {
+		return err
+	}
+
+	if err := onNewToken(accessToken, refreshToken); err != nil {
 		return err
 	}
 

@@ -64,7 +64,13 @@ func (u *UserEntityDao) CreateUser(email string) (user *UserEntity, lastError er
 }
 
 func (u *UserEntityDao) UpdateToken(userId int64, accessToken, refreshToken string) error {
-	return errors.New("not implements")
+	db := u.provider.GetHandle()
+	rows, err := db.Query("call fxtester_schema.update_token($1, $2, $3)", userId, accessToken, refreshToken)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	return nil
 }
 
 func (u *UserEntityDao) CheckAccessToken(userId int64, accessToken string) error {

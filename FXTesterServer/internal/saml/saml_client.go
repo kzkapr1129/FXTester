@@ -182,24 +182,23 @@ func (s *SamlClient) ExecuteSamlAcs(ctx echo.Context) (lastError error) {
 	// アサーションのNameIdとemailとする (keycloakの設定が正しければemailになっている)
 	email := assertion.Subject.NameID.Value
 
-	// TODO ユーザが存在するか確認する
-	entity, err := s.dao.SelectWithEmail(email)
-	if err != nil {
-		// TODO ユーザが存在しない場合はユーザを作成する
-		entity, err = s.dao.CreateUser(email)
+	return func() error {
+		// TODO ユーザが存在するか確認する
+		entity, err := s.dao.SelectWithEmail(email)
 		if err != nil {
-			return err
+			// TODO ユーザが存在しない場合はユーザを作成する
+			entity, err = s.dao.CreateUser(email)
+			if err != nil {
+				return err
+			}
 		}
-	}
 
-	// 認証セッションを作成する
-	err = net.CreateAuthSession(ctx.Response().Writer, entity.UserId, entity.Email)
-	if err != nil {
-		// 認証セッションの作成に失敗した場合
-		return err
-	}
-
-	return nil
+		// 認証セッションを作成する
+		return net.CreateAuthSession(ctx.Response().Writer, entity.UserId, entity.Email, func(accessToken, refreshToken string) error {
+			// トークンをDBに保存
+			return s.dao.UpdateToken(entity.UserId, accessToken, refreshToken)
+		})
+	}()
 }
 
 func (c *SamlClient) ExecuteSamlLogout(ctx echo.Context, params gen.GetSamlLogoutParams) error {

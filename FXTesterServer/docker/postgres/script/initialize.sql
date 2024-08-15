@@ -213,3 +213,15 @@ BEGIN
     WHERE u.email = p_email;
 END;
 $$ LANGUAGE plpgsql;
+
+/**
+ * ストアドプロシージャー名: update_token
+ * 機能: 指定ユーザとアクセストークン、リフレッシュトークンを関連付けします
+ * 利用例: call call fxtester_schema.update_token(1, 'access_token_xxx', 'refresh_token_yyy')
+ */
+create or replace procedure fxtester_schema.update_token(p_user_id bigint, p_access_token varchar, p_refresh_token varchar)
+AS $$
+BEGIN
+    UPDATE fxtester_schema.user u SET access_token=p_access_token, refresh_token=p_refresh_token WHERE u.id = p_user_id;
+END;
+$$ language plpgsql;
