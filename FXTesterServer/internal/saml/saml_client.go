@@ -261,7 +261,7 @@ func (c *SamlClient) ExecuteSamlLogout(ctx echo.Context, params gen.GetSamlLogou
 		return lang.NewFxtError(lang.ErrSSOHtmlWriting).SetCause(err)
 	}
 
-	return ctx.HTML(http.StatusOK, buf.String())
+	return nil
 }
 
 func (c *SamlClient) ExecuteSamlSlo(ctx echo.Context) error {
@@ -423,6 +423,8 @@ func (c *SamlClient) executeSamlSloByMySp(ctx echo.Context) (lastError error) {
 
 	// Authセッションの削除
 	net.DeleteAuthSession(ctx.Response().Writer)
+	// SLOセッションの削除
+	net.DeleteSLOSession(ctx.Response().Writer)
 
 	return nil
 }
