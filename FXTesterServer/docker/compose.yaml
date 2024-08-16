@@ -23,7 +23,6 @@ services:
     restart: always
     ports:
       - "127.0.0.1:3000:80"
-    image: nginx
     build:
       context: ../
       dockerfile: docker/nginx/Dockerfile
@@ -55,7 +54,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:25.0.0
     ports:
-      - "127.0.0.1:28080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       - KEYCLOAK_ADMIN=admin
       - KEYCLOAK_ADMIN_PASSWORD=admin

@@ -163,16 +163,18 @@ func DeleteSSOSession(w http.ResponseWriter) {
 }
 
 type SLOSessionPayload struct {
+	UserId             int64  `json:"userId"`
 	AuthnRequestId     string `json:"authnRequestId"`
 	RedirectURL        string `json:"redirectURL"`
 	RedirectURLOnError string `json:"redirectURLOnError"`
 }
 
-func CreateSLOSession(w http.ResponseWriter, authnRequestId string, redirectURL string, redirectURLOnError string) error {
+func CreateSLOSession(w http.ResponseWriter, userId int64, authnRequestId string, redirectURL string, redirectURLOnError string) error {
 	now := time.Now()
 	expires := now.Add(60 * time.Minute)
 
 	payload := SLOSessionPayload{
+		UserId:             userId,
 		AuthnRequestId:     authnRequestId,
 		RedirectURL:        redirectURL,
 		RedirectURLOnError: redirectURLOnError,

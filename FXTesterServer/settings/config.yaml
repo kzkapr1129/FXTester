@@ -3,7 +3,7 @@
 server:
   port: 8000
   allowOrigins:
-    - https://127.0.0.1:3000
+    - https://fx-tester-fe:3000
     - https://localhost:3000
   ssl:
     isEnabled: true
@@ -12,7 +12,7 @@ server:
 # DB設定
 db:
   name: postgres
-  dsn: "host=localhost port=5432 user=app_user password=app_user dbname=fxtester_db sslmode=disable search_path=fxtester_schema"
+  dsn: "host=fx-tester-db port=5432 user=app_user password=app_user dbname=fxtester_db sslmode=disable search_path=fxtester_schema"
   maxIdleConnections: 100
   maxOpenConnections: 100
   maxLifeTimeBySec: 60000
@@ -23,7 +23,7 @@ saml:
     adminUser:
       username: admin
       password: admin
-    baseURL: "http://localhost:28080"
+    baseURL: "http://keycloak:8080"
     realmName: my-realm
     # keycloak初期化と同時に追加するユーザ
     newUsers:
@@ -32,13 +32,13 @@ saml:
         email: test@fxtester.com
     # 新規追加するクライアントのID
     newClientId: fx-tester-client
-  idpMetadataUrl: http://localhost:28080/realms/my-realm/protocol/saml/descriptor
-  rootURL: https://localhost:3000/
-  entityId: https://localhost:3000/
-  backendURL: https://localhost:8000/
-  validRedirectURI: "https://localhost:8000/*"
-  validPostLogoutRedirectURI: "https://localhost:8000/*"
-  logoutServicePostBindingURL: "https://localhost:8000/saml/slo"
+  idpMetadataUrl: http://keycloak:8080/realms/my-realm/protocol/saml/descriptor
+  rootURL: https://fx-tester-fe:3000/
+  entityId: https://fx-tester-fe:3000/
+  backendURL: https://fx-tester-be:8000/
+  validRedirectURI: "https://fx-tester-be:8000/*"
+  validPostLogoutRedirectURI: "https://fx-tester-be:8000/*"
+  logoutServicePostBindingURL: "https://fx-tester-be:8000/saml/slo"
 # 辞書設定
 dict:
   path: "{{ .pwd }}/settings/dict.yaml"

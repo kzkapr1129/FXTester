@@ -34,14 +34,14 @@ func (b *BarService) Init() error {
 	return nil
 }
 
-// GetSamlLogin SAMLシングルサインオンの開始
+// ユーザをシングルサインオンさせるログインリクエストを作成し、FormのPOSTによってidPに送信するスクリプトタグを含んだHTMLを返却するエンドポイント。
 //
 // (GET /saml/login)
 func (b *BarService) GetSamlLogin(ctx echo.Context, params gen.GetSamlLoginParams) error {
 	return b.samlClient.ExecuteSamlLogin(ctx, params)
 }
 
-// PostSamlAcs SAMLアサーションの受け取り
+// IdPから受け取る認証レスポンス（SAMLアサーション）を処理するエンドポイント。
 //
 // (POST /saml/acs)
 func (b *BarService) PostSamlAcs(ctx echo.Context) error {
@@ -55,14 +55,14 @@ func (b *BarService) GetSamlError(ctx echo.Context) error {
 	return b.samlClient.ExecuteSamlError(ctx)
 }
 
-// SAMLシングルログアウトのリクエストを送信するためのHTMLを生成して返すエンドポイント
+// ユーザをログアウトさせるログアウトリクエストを作成し、FormのPOSTによってidPに送信するスクリプトタグを含んだHTMLを返却するエンドポイント。
 //
 // (GET /saml/logout)
 func (b *BarService) GetSamlLogout(ctx echo.Context, params gen.GetSamlLogoutParams) error {
 	return b.samlClient.ExecuteSamlLogout(ctx, params)
 }
 
-// SAMLシングルログアウトのアサーションを受け取るエンドポイント
+// IdPから受け取るログアウトリクエストを処理し、ユーザーをログアウトさせるエンドポイント。
 //
 // (POST /saml/slo)
 func (b *BarService) PostSamlSlo(ctx echo.Context) error {

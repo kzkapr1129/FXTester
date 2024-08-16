@@ -257,6 +257,8 @@ func MakeErrorResponse(ctx echo.Context, err error) (int, *gen.Error) {
 		}
 		errCode = ErrCodeUnknownErrorCode
 		arguments = []interface{}{}
+	} else {
+		ctx.Echo().Logger.Error(fxtError)
 	}
 
 	if settings.isDisplayErrCodeOnMessage {

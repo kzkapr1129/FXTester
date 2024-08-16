@@ -81,7 +81,7 @@ paths:
     get:
       tags:
         - Auth API
-      summary: SAMLシングルサインオンのリクエストを送信するためのHTMLを生成して返すエンドポイント
+      summary: ユーザをシングルサインオンさせるログインリクエストを作成し、FormのPOSTによってidPに送信するスクリプトタグを含んだHTMLを返却するエンドポイント。
       security: []
       parameters:
         - name: X-Redirect-URL
@@ -120,7 +120,7 @@ paths:
     post:
       tags:
         - Auth API
-      summary: idPから送信されたSAMLアサーションを受け取るエンドポイント
+      summary: IdPから受け取る認証レスポンス（SAMLアサーション）を処理するエンドポイント。
       security: []
       requestBody:
         content:
@@ -146,7 +146,7 @@ paths:
     get:
       tags:
         - Auth API
-      summary: SAMLシングルログアウトのリクエストを送信するためのHTMLを生成して返すエンドポイント
+      summary: ユーザをログアウトさせるログアウトリクエストを作成し、FormのPOSTによってidPに送信するスクリプトタグを含んだHTMLを返却するエンドポイント。
       security:
         - cookieAuth: []
       parameters:
@@ -186,7 +186,7 @@ paths:
     post:
       tags:
         - Auth API
-      summary: SAMLシングルログアウトのアサーションを受け取るエンドポイント
+      summary: IdPから受け取るログアウトリクエストを処理し、ユーザーをログアウトさせるエンドポイント。
       security:
         - cookieAuth: []
       requestBody:

@@ -23,20 +23,26 @@ tasks:
         fi
       - task: build:cert
       - task: init:keycloak
-      - task: dc:down:db
-      - task: dc:up:db
+      - task: init:db
 
   init:keycloak:
     cmds:
       - task: dc:down:keycloak
       - task: dc:up:keycloak
-      - sleep 10 # keycloakの立ち上げ待ち
+      - sleep 15 # keycloakの立ち上げ待ち
       - go run ./cmd/keycloak
+
+  init:db:
+    cmds:
+      - task: dc:down:db
+      - task: dc:up:db
 
   # 自動テスト
   test:
     cmds:
-      - go test -v ./...
+      - go test -cover ./... -coverprofile=cover.out
+      - go tool cover -html=cover.out -o cover.html
+      - open cover.html
 
   # ビルド関連: openapi定義からgo実装の自動生成
   build:openapi:
@@ -51,6 +57,7 @@ tasks:
   # コンテナ起動関連のコマンド
   dc:up:
     cmds:
+      - task: init:keycloak
       - docker compose -f docker/compose.yaml up -d
   dc:up:db:
     cmds:

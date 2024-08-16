@@ -44,12 +44,13 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    host: "fx-tester-fe",
     proxy: {
-      "/api": "https://localhost:8000"
+      "/api": "https://fx-tester-be:8000"
     },
     https: {
-      key: fs.readFileSync('./cert/localhost-key.pem'),
-      cert: fs.readFileSync('./cert/localhost.pem'),
+      key:  fs.readFileSync('../FXTesterServer/settings/cert/fx-tester.key.pem'),
+      cert: fs.readFileSync('../FXTesterServer/settings/cert/fx-tester.cert.pem'),
     }
   },
 })

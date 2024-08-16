@@ -237,7 +237,7 @@ func (c *SamlClient) ExecuteSamlLogout(ctx echo.Context, params gen.GetSamlLogou
 	}
 
 	// SLOセッションの作成
-	err = net.CreateSLOSession(ctx.Response().Writer, logoutRequest.ID, params.XRedirectURL, params.XRedirectURLOnError)
+	err = net.CreateSLOSession(ctx.Response().Writer, session.UserId, logoutRequest.ID, params.XRedirectURL, params.XRedirectURLOnError)
 	if err != nil {
 		return err
 	}
@@ -286,7 +286,22 @@ func (c *SamlClient) ExecuteSamlSlo(ctx echo.Context) error {
 }
 
 // executeSamlSloByOther 他SP起点のシングルサインアウトを処理する
-func (c *SamlClient) executeSamlSloByOther(ctx echo.Context) error {
+func (c *SamlClient) executeSamlSloByOther(ctx echo.Context) (lastError error) {
+	if err := c.dao.Begin(); err != nil {
+		return err
+	}
+	defer func() {
+		if lastError != nil {
+			if err := c.dao.Rollback(); err != nil {
+				ctx.Logger().Warnf("Error in rollback: %v", err)
+			}
+		} else {
+			if err := c.dao.Commit(); err != nil {
+				ctx.Logger().Warnf("Error in commit: %v", err)
+			}
+		}
+	}()
+
 	// リクエストボディからSAMLRequestを取り出す
 	samlRequestEncoded := ctx.Request().Form.Get(SAMLRequest)
 	// base64でエンコードされているSAMLRequestをデコードする
@@ -315,13 +330,22 @@ func (c *SamlClient) executeSamlSloByOther(ctx echo.Context) error {
 
 	// アクセストークンの検証
 	session, err := net.GetAuthSessionAccessToken(ctx.Request())
-	if err != nil {
-		return err
-	}
-
-	// サインアウトするユーザ情報が一致しているか確認
-	if session.Email != nameId {
-		return lang.NewFxtError(lang.ErrInvalidNameId)
+	if err == nil {
+		// サインアウトするユーザ情報が一致しているか確認
+		if session.Email != nameId {
+			ctx.Logger().Warnf("cannot delete the auth session: mismatch nameId %s vs %s", session.Email, nameId)
+		} else {
+			// Authセッションの削除
+			net.DeleteAuthSession(ctx.Response().Writer)
+			// DBのクリア
+			if user, err := c.dao.SelectWithEmail(session.Email); err != nil {
+				ctx.Logger().Warnf("cannot select user: email=%s", session.Email)
+			} else if err = c.dao.UpdateToken(user.UserId, "", ""); err != nil {
+				ctx.Logger().Warnf("cannot update token: userId=%d", user.UserId)
+			}
+		}
+	} else {
+		ctx.Logger().Warn("cannot delete the auth session: session nothing")
 	}
 
 	// idPのURLを取得
@@ -331,9 +355,6 @@ func (c *SamlClient) executeSamlSloByOther(ctx echo.Context) error {
 	if err != nil {
 		return lang.NewFxtError(lang.ErrSamlLogoutResponseCreation).SetCause(err)
 	}
-
-	// Authセッションの削除
-	net.DeleteAuthSession(ctx.Response().Writer)
 
 	// ヘッダの設定
 	ctx.Response().Header().Add(echo.HeaderContentSecurityPolicy, "default-src; "+
@@ -360,8 +381,16 @@ func (c *SamlClient) executeSamlSloByMySp(ctx echo.Context) (lastError error) {
 		return err
 	}
 
+	if err := c.dao.Begin(); err != nil {
+		return err
+	}
+
 	defer func() {
 		if lastError != nil {
+			if err := c.dao.Rollback(); err != nil {
+				ctx.Logger().Warn("error in rollback: %v", err)
+			}
+
 			ctx.Logger().Error(lastError)
 
 			// executeSamlSloByMySp()がエラーを返却した場合
@@ -376,6 +405,10 @@ func (c *SamlClient) executeSamlSloByMySp(ctx echo.Context) (lastError error) {
 			// リダイレクト要求を発効
 			lastError = ctx.Redirect(http.StatusFound, session.RedirectURLOnError+"?"+params.Encode())
 		} else {
+			if err := c.dao.Commit(); err != nil {
+				ctx.Logger().Warn("error in commit: %v", err)
+			}
+
 			// executeSamlSloByMySp()がエラーを返却しなかった場合
 			// エラーを空にする
 			net.CreateSamlErrorSession(ctx.Response().Writer, gen.Error{})
@@ -425,6 +458,10 @@ func (c *SamlClient) executeSamlSloByMySp(ctx echo.Context) (lastError error) {
 	net.DeleteAuthSession(ctx.Response().Writer)
 	// SLOセッションの削除
 	net.DeleteSLOSession(ctx.Response().Writer)
+	// DBのクリア
+	if err := c.dao.UpdateToken(session.UserId, "", ""); err != nil {
+		return err
+	}
 
 	return nil
 }

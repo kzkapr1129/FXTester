@@ -1,7 +1,6 @@
 package db
 
 import (
-	"database/sql"
 	"errors"
 	"fxtester/internal/lang"
 )
@@ -9,61 +8,6 @@ import (
 type Token struct {
 	AccessToken  string
 	RefreshToken string
-}
-
-type IDaoBase interface {
-	Begin() error
-	Rollback() error
-	Commit() error
-	Query(query string, args ...any) (*sql.Rows, error)
-}
-
-type DaoBase struct {
-	dbWrapper IDbWrapper
-	tx        *sql.Tx
-}
-
-func (e *DaoBase) Begin() error {
-	db := e.dbWrapper.GetDb()
-	tx, err := db.Begin()
-	if err != nil {
-		return lang.NewFxtError(lang.ErrDBBegin).SetCause(err)
-	}
-	e.tx = tx
-	return nil
-}
-
-func (e *DaoBase) Rollback() error {
-	if e.tx != nil {
-		defer func() {
-			e.tx = nil
-		}()
-		err := e.tx.Rollback()
-		if err != nil {
-			return lang.NewFxtError(lang.ErrDBRollback).SetCause(err)
-		}
-	}
-	return nil
-}
-
-func (e *DaoBase) Commit() error {
-	if e.tx != nil {
-		defer func() {
-			e.tx = nil
-		}()
-		err := e.tx.Commit()
-		if err != nil {
-			return lang.NewFxtError(lang.ErrDBCommit).SetCause(err)
-		}
-	}
-	return nil
-}
-
-func (e *DaoBase) Query(query string, args ...any) (*sql.Rows, error) {
-	if e.tx != nil {
-		return e.tx.Query(query, args...)
-	}
-	return e.dbWrapper.GetDb().Query(query, args...)
 }
 
 type IUserEntityDao interface {
@@ -77,12 +21,12 @@ type IUserEntityDao interface {
 }
 
 type UserEntityDao struct {
-	DaoBase
+	IDaoBase
 }
 
 func NewUserEntityDao(dbWrapper IDbWrapper) IUserEntityDao {
 	return &UserEntityDao{
-		DaoBase: DaoBase{
+		IDaoBase: &DaoBase{
 			dbWrapper: dbWrapper,
 		},
 	}
@@ -90,7 +34,7 @@ func NewUserEntityDao(dbWrapper IDbWrapper) IUserEntityDao {
 
 // CreateUser userテーブルに新規レコードを追加する
 func (u *UserEntityDao) CreateUser(email string) (user *UserEntity, lastError error) {
-	rows, err := u.DaoBase.Query("select fxtester_schema.create_user($1)", email)
+	rows, err := u.IDaoBase.Query("select fxtester_schema.create_user($1)", email)
 	if err != nil {
 		return nil, lang.NewFxtError(lang.ErrDBQuery).SetCause(err)
 	}
@@ -110,7 +54,7 @@ func (u *UserEntityDao) CreateUser(email string) (user *UserEntity, lastError er
 }
 
 func (u *UserEntityDao) UpdateToken(userId int64, accessToken, refreshToken string) error {
-	rows, err := u.DaoBase.Query("call fxtester_schema.update_token($1, $2, $3)", userId, accessToken, refreshToken)
+	rows, err := u.IDaoBase.Query("call fxtester_schema.update_token($1, $2, $3)", userId, accessToken, refreshToken)
 	if err != nil {
 		return nil
 	}
@@ -139,7 +83,7 @@ func (u *UserEntityDao) SelectWithEmail(email string) (*UserEntity, error) {
 			refresh_token
 		from fxtester_schema.select_user_with_email($1)
 	`
-	rows, err := u.DaoBase.Query(sql, email)
+	rows, err := u.IDaoBase.Query(sql, email)
 	if err != nil {
 		return nil, lang.NewFxtError(lang.ErrDBQuery).SetCause(err)
 	}
