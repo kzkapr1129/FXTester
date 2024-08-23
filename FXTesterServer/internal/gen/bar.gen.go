@@ -19,11 +19,36 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"
 	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 const (
+	BearerAuthScopes = "bearerAuth.Scopes"
 	CookieAuthScopes = "cookieAuth.Scopes"
 )
+
+// Defines values for CreateFeaturePointsRequestFileType.
+const (
+	MT4CSV CreateFeaturePointsRequestFileType = "MT4_CSV"
+)
+
+// CreateFeaturePointsRequest defines model for CreateFeaturePointsRequest.
+type CreateFeaturePointsRequest struct {
+	// FileName ファイルのテキストまたはバイナリデータ
+	FileName *openapi_types.File `json:"fileName,omitempty"`
+
+	// FileType ファイルタイプ
+	FileType *CreateFeaturePointsRequestFileType `json:"fileType,omitempty"`
+}
+
+// CreateFeaturePointsRequestFileType ファイルタイプ
+type CreateFeaturePointsRequestFileType string
+
+// CreateFeaturePointsResult defines model for CreateFeaturePointsResult.
+type CreateFeaturePointsResult struct {
+	// Uuid 進捗率を受け取るためのUUID
+	Uuid string `json:"uuid"`
+}
 
 // Error defines model for Error.
 type Error struct {
@@ -77,6 +102,9 @@ type GetSamlLogoutParams struct {
 type PostSamlSloFormdataBody struct {
 	union json.RawMessage
 }
+
+// PostFeaturePointsMultipartRequestBody defines body for PostFeaturePoints for multipart/form-data ContentType.
+type PostFeaturePointsMultipartRequestBody = CreateFeaturePointsRequest
 
 // PostSamlAcsFormdataRequestBody defines body for PostSamlAcs for application/x-www-form-urlencoded ContentType.
 type PostSamlAcsFormdataRequestBody = SAMLResponse
@@ -157,6 +185,9 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// PostFeaturePointsWithBody request with any body
+	PostFeaturePointsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// PostSamlAcsWithBody request with any body
 	PostSamlAcsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -175,6 +206,21 @@ type ClientInterface interface {
 	PostSamlSloWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	PostSamlSloWithFormdataBody(ctx context.Context, body PostSamlSloFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetWsUuid request
+	GetWsUuid(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) PostFeaturePointsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostFeaturePointsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) PostSamlAcsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -259,6 +305,47 @@ func (c *Client) PostSamlSloWithFormdataBody(ctx context.Context, body PostSamlS
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+func (c *Client) GetWsUuid(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetWsUuidRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NewPostFeaturePointsRequestWithBody generates requests for PostFeaturePoints with any type of body
+func NewPostFeaturePointsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/feature_points")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
 }
 
 // NewPostSamlAcsRequestWithFormdataBody calls the generic PostSamlAcs builder with application/x-www-form-urlencoded body
@@ -466,6 +553,33 @@ func NewPostSamlSloRequestWithBody(server string, contentType string, body io.Re
 	return req, nil
 }
 
+// NewGetWsUuidRequest generates requests for GetWsUuid
+func NewGetWsUuidRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ws/:uuid")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -509,6 +623,9 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// PostFeaturePointsWithBodyWithResponse request with any body
+	PostFeaturePointsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostFeaturePointsResponse, error)
+
 	// PostSamlAcsWithBodyWithResponse request with any body
 	PostSamlAcsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostSamlAcsResponse, error)
 
@@ -527,6 +644,34 @@ type ClientWithResponsesInterface interface {
 	PostSamlSloWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostSamlSloResponse, error)
 
 	PostSamlSloWithFormdataBodyWithResponse(ctx context.Context, body PostSamlSloFormdataRequestBody, reqEditors ...RequestEditorFn) (*PostSamlSloResponse, error)
+
+	// GetWsUuidWithResponse request
+	GetWsUuidWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetWsUuidResponse, error)
+}
+
+type PostFeaturePointsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON202      *CreateFeaturePointsResult
+	JSON400      *Error
+	JSON401      *Error
+	JSON500      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r PostFeaturePointsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostFeaturePointsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type PostSamlAcsResponse struct {
@@ -638,6 +783,36 @@ func (r PostSamlSloResponse) StatusCode() int {
 	return 0
 }
 
+type GetWsUuidResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r GetWsUuidResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetWsUuidResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// PostFeaturePointsWithBodyWithResponse request with arbitrary body returning *PostFeaturePointsResponse
+func (c *ClientWithResponses) PostFeaturePointsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostFeaturePointsResponse, error) {
+	rsp, err := c.PostFeaturePointsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostFeaturePointsResponse(rsp)
+}
+
 // PostSamlAcsWithBodyWithResponse request with arbitrary body returning *PostSamlAcsResponse
 func (c *ClientWithResponses) PostSamlAcsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostSamlAcsResponse, error) {
 	rsp, err := c.PostSamlAcsWithBody(ctx, contentType, body, reqEditors...)
@@ -697,6 +872,62 @@ func (c *ClientWithResponses) PostSamlSloWithFormdataBodyWithResponse(ctx contex
 		return nil, err
 	}
 	return ParsePostSamlSloResponse(rsp)
+}
+
+// GetWsUuidWithResponse request returning *GetWsUuidResponse
+func (c *ClientWithResponses) GetWsUuidWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetWsUuidResponse, error) {
+	rsp, err := c.GetWsUuid(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetWsUuidResponse(rsp)
+}
+
+// ParsePostFeaturePointsResponse parses an HTTP response from a PostFeaturePointsWithResponse call
+func ParsePostFeaturePointsResponse(rsp *http.Response) (*PostFeaturePointsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostFeaturePointsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest CreateFeaturePointsResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParsePostSamlAcsResponse parses an HTTP response from a PostSamlAcsWithResponse call
@@ -816,8 +1047,27 @@ func ParsePostSamlSloResponse(rsp *http.Response) (*PostSamlSloResponse, error) 
 	return response, nil
 }
 
+// ParseGetWsUuidResponse parses an HTTP response from a GetWsUuidWithResponse call
+func ParseGetWsUuidResponse(rsp *http.Response) (*GetWsUuidResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetWsUuidResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// ローソク足のデータが格納されたファイル(MT4が出力したCSVなど)をアップロードし、特徴点の抽出を開始します。
+	// (POST /feature_points)
+	PostFeaturePoints(ctx echo.Context) error
 	// IdPから受け取る認証レスポンス（SAMLアサーション）を処理するエンドポイント。
 	// (POST /saml/acs)
 	PostSamlAcs(ctx echo.Context) error
@@ -833,11 +1083,25 @@ type ServerInterface interface {
 	// IdPから受け取るログアウトリクエストを処理し、ユーザーをログアウトさせるエンドポイント。
 	// (POST /saml/slo)
 	PostSamlSlo(ctx echo.Context) error
+	// Websocketと接続します。
+	// (GET /ws/:uuid)
+	GetWsUuid(ctx echo.Context) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// PostFeaturePoints converts echo context to params.
+func (w *ServerInterfaceWrapper) PostFeaturePoints(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(BearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PostFeaturePoints(ctx)
+	return err
 }
 
 // PostSamlAcs converts echo context to params.
@@ -967,6 +1231,17 @@ func (w *ServerInterfaceWrapper) PostSamlSlo(ctx echo.Context) error {
 	return err
 }
 
+// GetWsUuid converts echo context to params.
+func (w *ServerInterfaceWrapper) GetWsUuid(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(BearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetWsUuid(ctx)
+	return err
+}
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -995,47 +1270,60 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
+	router.POST(baseURL+"/feature_points", wrapper.PostFeaturePoints)
 	router.POST(baseURL+"/saml/acs", wrapper.PostSamlAcs)
 	router.GET(baseURL+"/saml/error", wrapper.GetSamlError)
 	router.GET(baseURL+"/saml/login", wrapper.GetSamlLogin)
 	router.GET(baseURL+"/saml/logout", wrapper.GetSamlLogout)
 	router.POST(baseURL+"/saml/slo", wrapper.PostSamlSlo)
+	router.GET(baseURL+"/ws/:uuid", wrapper.GetWsUuid)
 
 }
 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/+xYe1Mb1xX/Kupt/4CphFbgepLNeDp2YsekEGkQmbhFTGa1ukib7Ct374KUVDPsbkJE",
-	"kWtCXTtO3dokGUIgAWeAmlfCh7lapPyVr9C5d7WsBIsEU2gnmXg06937OO/zO+fwPhA1RddUqGID8O8D",
-	"QyxARWCvNxHSEH3RkaZDhCXIlkUtB+n/OWiISNKxpKmAB8TeIs4+ceaJs+/OfPiDs0ysL2vfHdTvLxPr",
-	"IbGWiPUBseeIvUycr+hJe4OdnwVRAIuCossQ8IArvsBxHJcAUTChIUXAgAempOKBfhAFuKTTM5KKYR4i",
-	"UI4CBRqGkA+VxmfjLBLHIfYeY7kd6XG/+LSxPN1Y+ZdbfeCuf9/4drG3TQJif0GcDWIfsMt/Ic5qQMuq",
-	"1h/t1u8/YQp9z55PyLSdUXtOqsVHfF16M2ogvIGRpOZBuRwFCL5rSgjmAD/m2TTQZ/zovJZ9G4qY6sq8",
-	"8aaEC6OSAk96BSLmqt8gOAF48Ot44NV406Vxz5/lKMBNCoHW/Vz/lRj3QixxZTSR4BMv8on+33Iv8hzX",
-	"VXLKt0kxTOr09eGhWxpS2tk13/jInzNqJJIxOW5A/NUryZdH/5i6GSlgRWZLMNhsX/NXs1qu1Lrqr9PQ",
-	"iSgQF7TctQxIJdOjGRCR6DsVZwS+a0IDU6kyoP26T0BSdRNHVEGB7XcyIEKcPe8XxjhOOYdteLHp7eQ0",
-	"0VSgivvyEN+UIX29URrM9YRI19tnmFlFwj29TfqtdFotEW83RXOx1WonHRlt5XcyoEagLJTSWMDHQqVY",
-	"LHagBU2PVnA+dfv1QvbN4lRSfk0WB25MZtXX5cHbBZx99XfvJVVvL5V+LSEqV65m+2+9J9wZvppVbuE/",
-	"3Rm+mjuydmgchkbbCDR0TTXgBWkUEPt/qFSOAgOKJpJwKU2z2Edg7R0JXjdxgX5JFPC8JRAFNGgBDwRR",
-	"hIbxFtbegS2uF3TpD7AEypSupE5o9LosibCpYfPu8OCohxKYaXtDQGmIJiWRkp+EyPAgNtHH9XH0nKZD",
-	"VdAlwIMBthQFuoALTNC4IShyXBDZh655oUFdIlCcHsxRW2oGTguKfF00gIcs0MA3tFzJU1TFUGW3BF2X",
-	"JZHdixdjU1NTMZprMRPJUKXomQuKVzccbHNsuewhmvfJBB3g+k9WlMNvPne3t+tbdm13pok+yM+tnlNK",
-	"xBP36aY7XyHW+m2MdeJ8QkuRM02stSHNU4VYq4dP9+ubd4n1d2JX6c+vlG+MDBFrlT6djxnxRVZeDnqo",
-	"Td+CFMuvJXqJVa3tfVLb/qtPYM4rNwUo5CBi6vi8Qqqks0LFoRXva2KvE6fiflgh1tobI0Mg2mLMIPIL",
-	"GOsGH48X6b+4rOUl9fet8oTGdBri2MtefLb5KCDbGq3XKOmXIikBF67FX4pQyyVVuRSNIDiBoFEIOTWa",
-	"fCXZejKQKOQwC0m2GVwJEbvcmnuAHxuPAsNUFAGVAA8GcylizRF71r33kFgfu/ceEHuusXK3sbzPTLlD",
-	"nH+yLmLnx/0KDTdif9ZskOznxPmSOBs/7s8Se8H9aKk+P0OsR35rtEGcWXrZ60KcCpm2qXBC3qDFlqZ8",
-	"5HpqEIxT6VpUoebMw5D0ehWy7PJK/7E47+e4Dkn2tuGFzNlyqr07YcY7PX8A250QTBlfrABhjGu7lcPH",
-	"Xj6usMzqlKqgk9eZI51viP2s6R5r7Yha46uN+uYzYi80Du67dzc7eLSLO1lOdXPnEDtEgRYJCsQs0cdO",
-	"9sDPWQw+Yz3slt/YrhBnw12r1nZnDh/ZxFo9CQIUSqx/0N7W+oDij71wWP3IXfvUUwpEvYrjIUxQce7E",
-	"RmBOQlDEMQ8/gi4RIxOeBU/C0OMcWh054zIViyXVWJBNF6DheNesxLCIWS93vhLH2u5umdhWKboDtWFo",
-	"p0GqIBpdAPV/mPSdosSqNpa/de+tNysmRYU5Yn1+NgwgzhJD8X8Te6EjExZp9lwbXjgrNA7tZVYgKsRe",
-	"qH33+LAyTwFo2qLuItYanVZo8NoVJtOSREvN6g/TVu1g0UeVHRbOK8R5yMgcMA4L7vwqsf9GrKe3R2nB",
-	"6Y5E3WuLrOU1E58Bjeip88BR0yqfEXuJdh0/Ezhq16q1PPyCSJeGSPKpiGTI2s8TkdonwLHx8ukQdTwk",
-	"j8GSv/6TQyZD1rrPlGlZu8iZUlNhcoKZv/t06f1RheLF2SfR8ZBZ9NJzr7b3IJ1qbD2v2zsMsDrAWbXT",
-	"DEx7+vDB+fHXF8LglyH7vxyyL2Mq7oxEoWNyV+jxZ2IKPQGW0efpcHY+EDmuQxYKCKI2HSCa9NsYE8lN",
-	"p/DxeFZAfcaUkM9D1Cdp8ckETdv/BAAA//8Ej9AjRBkAAA==",
+	"H4sIAAAAAAAC/+xa/VMTSfr/V/Kd7/0AdQlJkLV2s2Vd+bqyJ5IyYfVOKGsyaZJZJzPZmQ4vu0cVM+Py",
+	"IkGQQxF1T1APMSygC4ogL39MMyT8tP/CVXfPJDPJkEAteHVba1nU0NPz9PP6eT5P6w8MJ6XSkghEqDCh",
+	"HxiFS4IUSx7Py4CF4BJgYUYGYYkXoXINfJcBCsRv07KUBjLkAdnbyQvgKpsC+DkOFE7m05CXRCbEIP0B",
+	"0maR9hLpC0hdQvoA0haRto70IaRuI/UZUpeRPk423EV6DumDSN9E2g7jZTolOcVCJsTEeJGVexkvA3vT",
+	"gAkxCpR5McH0ecnBUbJY9WBthzxMMV4GiJkUE7rJtESbbp2PfMN0VEjtK65IsW8BB/E5rs5QMoKLLzIZ",
+	"Pl6pzn7/L3ujU/l7g0ibMMamkHrfGHuItBHsAU1F6lJbW/MFxk0XGXyX4WUQx0oT2R0u+l2UZUmu1IWT",
+	"4m6u0d5hH+vjSN80Bn7c1+eR+mp3ayc/OY/UKaTOIfUOVk2bR/prEo0Vsn8Yu6+HTaUFfHig5/NAIBAI",
+	"2gOV4UV4qrFkBi9CkAAy1jAFFIVNuGpjHaPPIl1H2kdy5AdPnfHycWG+v5D7l5F9aCxvF97O1js0IDFd",
+	"wcHFH98lgbZkqdn89EZ+8hkxaJv8fIb6tXaxrtKskMeypb5drBkD4tOSPQdG4zoPk1Ge1oQzKkAmofqT",
+	"DDqZEPP//lIJ+s3689N44kw0JZSsbgw0NvkCn/uCTdFgMBT8IhRs/HPgi1AgUFNzfK4p0U3ryNmWK5ck",
+	"OeU8znwKef7RLno87ZlA4BT3fxdaz0f/Fr7oScKUQJZA6aVzzVqNSfFe+6q1jlPHkwIwKcXPtDPh1ki0",
+	"nfHw+BmrYwIO1qqdcX5uCeDFdAZ6RDYFnN+0Mx6kf6R/3Q7245PdXtDcpG/iEpdJARE2JAC8KAD8eK63",
+	"OV7nol19g5KJpXhYV2/Kt8uxe8LvdIW5aPeaG9DZzqtMqGtAYHsjkIVlqdLT01NFFshQWaX94ctXk7Hr",
+	"Pd2twtcCd+pcV0y8KjRfTsLYV5993yrSd+HI10Eu1XQ61njpe/ZGy+lY6hL8+42W0/Git5lDISpVQklL",
+	"ogKOyaKSsP+GSX1eRgFcRuZhbwRXsYXA0m0enM3AJP6Nx4BHlxgvI5KOybAcBxTlFpRuA1vo2TT/V9DL",
+	"9GG5vNgp4c8FngOmhea3Lc1RihKQWHuOlSNA7uI5LL4LyAqF2GBDoCGA90lpILJpngkxp8iSl0mzMEkU",
+	"9XfS5nYrTbobCYlEEwQHhsVo3RzHHpUU6GiEDEUZoMBzUryXGi1CIJJvUxkB8mlWhqTefHEWsiWeUQsF",
+	"q1CQvj6KbjTmRN3GQGPZ4Ww6LfAcUd3/rYJd8ZtOJv2enOvsYPnhdWN7Na+tI3Vp7+6WMbhRmFP33mpI",
+	"zRpjU/szj5D6AGlZpD4zZlaN8SHUr+FgNAUCx6av2S8qdTsbbkb6fdLwZimxQurS7odRQ5tGahapGlJf",
+	"FBVrF32e3Y2hvae0beYwD6j4eC87aCw9xlsdFMvibUXxnvzicLtIDQ2evKF786/3p8eLzR2f+9mncLAx",
+	"OJcfH8i/f1yYzSJ1wXjyZv/JC6TmjAdj+3jFzkNsbrZzsMIvM4XRNeP5lPHyFVIXkDaEtLtUrpMtZmlM",
+	"qO/HCVlaJhavIH0Ys2ttjVDrAaTPIHWhMLhq3N/KP76D1Fz++UYhN1pMRCs4GLQyqRRm15gyL5IYbiFt",
+	"ufB+hdD1YlSzezOb+dWSBHvw61qiTTjZBzeMu0+opecj3xBlX9cjbQJpz7Gy+pR5AlZ2CvWrlYWDtIn9",
+	"hyPGqxGLt03jYvEyPb5uEFMk7jaAPpN5kZqXAdd1pBg72wzL0ShWDg8507V0UtGek1/XkP4KO1tdMJa3",
+	"Laq8ZOw8zS9Olu2xTRppWUrIQFFcRg2Mv72CxMaPYMPN6onalsbywuaZFmh1uDes8hXaxMT4J3Apzlan",
+	"V12GtMO6rgyPx7aNp/NIXaYzTX5yfr9/Mn9nFqlTh2rkfdQRfoVNCX6Wq9ELI2xKOMtV74J2B/b4uru7",
+	"faQbZmQBiHieiB8eiBxUx6ULnqJdsAwcF18YHz7k32m7GwMmH5cttll3wNBkNSt1+TKEaaQ/IiXcj9Sl",
+	"KxI1BakLDlDAuGDOjm3XriB1Af909o867NNbAIPpmWA9UrO7Hx/tfrhnCRihA1gSsHEgE3Oss9wTSu8n",
+	"KfMzziN9yPgRp1XbtSuM1+bMEhdMQphWQn5/D/7jF6QEL/7Fro9rckQA9J2njM0Ro5JYO387g0V/6Qmz",
+	"MHnG/6UHe65VFHq9Hhl0ykBJuuyKtl5ote8saeSymaQkeVn6xEXtPjsbZUI3O+ww3xwPI3UEacP2e4hC",
+	"brQwv0lcuY70n0g9rv+6OYTTjRQqaVdWrf66OYw7E21R6rR1WUDakP6TOZfrQxS7IZtQcDFjEuw5G25m",
+	"OkrVBax7iwRwKa+vAKku2nsr2N4xN/fivO5GLmz1w5C3nax5+XOy7KKcjVUtVaZa1Ekg9UWkvTHDgwHY",
+	"lFZ4vZJffYO0icLOpDG6WiWiNcJJaqpWOK+QTRi/ZTYFICn0m5W3QmskB9+QW5131lVPDukrxlJ2d2Ng",
+	"b1rDXKkCBDCUqE/IxeIdjD/aBCWs1CjGS2cwijClGeyG7xqI8zLgoI/iR+neBMoZcBg8cUOPI1hVDMZJ",
+	"GuZrFX2lajoGCztqViUEPZDcbhytxZGLqFqV6OgUtYFaUaSDIJXllBqA+gmLvlqWqNnC/FtjbNni4TkM",
+	"5bYRrioGIH2OoPh7wsmrHEIyTRtx4EU5JZ7Y3Xq6NzROmTwOF1KXwq2RqDnBYJ3meNxqFvb71d2dWQtV",
+	"1kk658g0MERIH0YeY3wBaf9E6szlKG44tZGodm8RpISUgYdAI7zrKHBkeuU50uYw6/idwJHTKnt7+AOR",
+	"TgyRhAMRSRGk3yciOe9Eb3b0HQxR5SlZBkvW+v8cMimCVHumjAjScc6UkghaO2veHtj/mQHjxeEn0Q7X",
+	"G9kTrr3djw8j4cK7NXqFVBXOstVmYMzp3Qfnpz8fywF/DNm/ccg+iam4OhK5jsk1oceaiTH0lLAM/zwY",
+	"zo4MIt2KP2T9N4ODuM11pQ3vKKvIIL2Kdwb5unW1Sm58x0xltDWkvcL6aMvF5EbqAqU7lWNn0W82afN7",
+	"9/6df//YcZdbGYQYYGUgO4IA5C6Lh2VkwcyqkN8fY+UGpZtNJIDcwEv+riDGnf8EAAD//wtrXTHEIgAA",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

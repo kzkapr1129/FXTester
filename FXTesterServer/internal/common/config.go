@@ -83,6 +83,12 @@ type Config struct {
 		// 辞書ファイルのパス
 		Path string `yaml:"path"`
 	} `yaml:"dict"`
+
+	// Websocket
+	Websocket struct {
+		// 最大接続数
+		MaxConnections int `yaml:"maxConnections"`
+	} `yaml:"websocket"`
 }
 
 var once sync.Once

@@ -4,6 +4,9 @@ import (
 	"fxtester/internal/db"
 	"fxtester/internal/gen"
 	"fxtester/internal/saml"
+	"fxtester/internal/websock"
+	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -11,14 +14,19 @@ import (
 type BarService struct {
 	samlClient *saml.SamlClient
 	dbWrapper  db.IDbWrapper
+
+	websockClient *websock.WebsockClient
 }
 
 func NewBarService() *BarService {
 	dbWrapper := &db.DbWrapper{}
-	client := saml.NewSamlClient(&saml.SamlClientReader{}, dbWrapper)
+	samlClient := saml.NewSamlClient(&saml.SamlClientReader{}, dbWrapper)
+	websockClient := websock.NewWebsockClient()
+
 	return &BarService{
-		samlClient: client,
-		dbWrapper:  dbWrapper,
+		samlClient:    samlClient,
+		dbWrapper:     dbWrapper,
+		websockClient: websockClient,
 	}
 }
 
@@ -67,4 +75,36 @@ func (b *BarService) GetSamlLogout(ctx echo.Context, params gen.GetSamlLogoutPar
 // (POST /saml/slo)
 func (b *BarService) PostSamlSlo(ctx echo.Context) error {
 	return b.samlClient.ExecuteSamlSlo(ctx)
+}
+
+// Websocketと接続します。
+//
+// (GET /ws/:uuid)
+func (b *BarService) GetWsUuid(ctx echo.Context) error {
+	return b.websockClient.CommunicateViaWs(ctx)
+}
+
+// ローソク足のデータが格納されたファイル(MT4が出力したCSVなど)をアップロードし、特徴点の抽出を開始します。
+// (POST /feature_points)
+func (b *BarService) PostFeaturePoints(ctx echo.Context) error {
+	writer, closer, uuid, err := b.websockClient.NewWs()
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		defer closer()
+
+		const max = 100
+		for i := 0; i < max; i++ {
+			writer("progress", float32(i)/max)
+			time.Sleep(100 * time.Millisecond)
+		}
+
+		// 処理結果をDB(またはfireStore)に格納して、wsの切断等に対処する
+	}()
+
+	return ctx.JSON(http.StatusAccepted, gen.CreateFeaturePointsResult{
+		Uuid: uuid,
+	})
 }

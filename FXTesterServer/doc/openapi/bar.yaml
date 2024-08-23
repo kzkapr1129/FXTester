@@ -72,6 +72,38 @@ components:
       required:
         - err
         - time
+    CreateFeaturePointsRequest:
+      type: object
+      properties:
+        fileType:
+          type: string
+          enum: [MT4_CSV]
+          description: ファイルタイプ
+        fileName:
+          type: string
+          format: binary
+          description: ファイルのテキストまたはバイナリデータ
+    CreateFeaturePointsResult:
+      type: object
+      properties:
+        uuid:
+          type: string
+          description: 進捗率を受け取るためのUUID
+      required:
+        - uuid
+    UploadProgressResult:
+      type: object
+      properties:
+        rate:
+          type: number
+          format: float
+          description: 進捗率(進捗に応じて0.0から1.0に増加する)
+        isCompleted:
+          type: boolean
+          description: アップロードが完了したかのフラグ値
+      required:
+        - rate
+        - isCompleted
 
 security: # 全てのエンドポイントに対してbearerの指定を要求する
   - bearerAuth: []
@@ -237,3 +269,80 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+
+  /ws/:uuid:
+    get:
+      summary: Websocketと接続します。
+      responses:
+        '101':
+          description: Websocketのハンドシェイクが正常に完了した場合
+
+  /feature_points:
+    post:
+      summary: ローソク足のデータが格納されたファイル(MT4が出力したCSVなど)をアップロードし、特徴点の抽出を開始します。
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/CreateFeaturePointsRequest"
+      responses:
+        '202':
+          description: 特徴点の抽出要求が受領された場合。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateFeaturePointsResult"
+        '400':
+          description: |
+            APIパラメータの不備があった場合
+            - 予期しないパラメータの指定
+            - ファイルデータの不備 等
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: 権限エラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: |
+            処理続行に困難な問題が発生した場合
+            - サーバー負荷増大により処理を受け取れない
+            - バックエンドのシステムに致命的な確認された 等
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-websocket-messages:
+        send:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  action:
+                    type: string
+                    enum: [progress]
+                    description: リクエストのアクションタイプ
+                  payload:
+                    type: string
+                    description: 現在は使用用途無し
+        recv:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  action:
+                    type: string
+                    enum: [progress]
+                    description: リクエストアクションに対しての応答アクション
+                  payload:
+                    type: object
+                    content:
+                      application/json:
+                        schema:
+                          - $ref: "#/components/schemas/UploadProgressResult"

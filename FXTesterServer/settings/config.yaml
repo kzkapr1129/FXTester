@@ -42,3 +42,6 @@ saml:
 # 辞書設定
 dict:
   path: "{{ .pwd }}/settings/dict.yaml"
+# Websocket設定
+websocket:
+  maxConnections: 50
