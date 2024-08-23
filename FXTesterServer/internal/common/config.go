@@ -1,4 +1,4 @@
-package internal
+package common
 
 import (
 	"bytes"
@@ -26,10 +26,6 @@ type Config struct {
 			// キーファイルのパス
 			KeyPath string `yaml:"keyPath"`
 		} `yaml:"ssl"`
-		JwtKey struct {
-			AccessToken  string `yaml:"accessToken"`
-			RefreshToken string `yaml:"refreshToken"`
-		} `yaml:"jwtKey"`
 	} `yaml:"server"`
 
 	// DB設定
@@ -72,6 +68,8 @@ type Config struct {
 		RootURL string `yaml:"rootURL"`
 		// SAMLクライアントのEntityId
 		EntityId string `yaml:"entityId"`
+		// バックエンドのURL
+		BackendURL string `yaml:"backendURL"`
 		// Valid redirect URI
 		ValidRedirectURI string `yaml:"validRedirectURI"`
 		// Valid post logout redirect URI

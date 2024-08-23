@@ -1,4 +1,4 @@
-package internal
+package lang
 
 import (
 	"net/http/httptest"

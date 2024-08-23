@@ -6,8 +6,6 @@ classDiagram
     +Email#58; string
     +RefreshToken#58; string
     +      RefreshTokenExpiresAt
-    +SamlRequestId
-    +SamlRequestIdExpiresAt
   }
   class UserEntityDao {
     -dbClient#58; DBClient
@@ -17,8 +15,6 @@ classDiagram
     +ValidateToken(accessToken#58; string) ValidTokenResult
     +SelectWithUserId(userId#58; int64) UserEntity
     +SelectWithEmail(email#58; string) UserEntity
-    +SetSamlRequestId(email#58; string, samlRequestId#58; string, expiresAt#58; string) error
-    +GetSamlRequestId(email#58; string) GetSamlRequestIdResult
   }
   class Token {
     +AccessToken#58; string

@@ -8,1026 +8,232 @@ servers:
   - url: http://bar.swagger.io/v1
 components:
   securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+    cookieAuth:         # arbitrary name for the security scheme; will be used in the "security" key later
+      type: apiKey
+      in: cookie
+      name: access_token
   schemas:
-    position:
+    SAMLForm:
       type: string
-      enum: [long, short]
-      description: ポジション種別
-      example: long
-    featureType:
-      type: string
-      enum: [power_bar, elliott, candlewick]
-      description: チャートの特徴種別
-    csvFormat:
-      type: string
-      enum: [MT4, MT5]
-      description: csvファイルのフォーマット
-      example: MT4
-    candle:
+      example: |
+        example: |
+          <!DOCTYPE html>
+          <html>
+            <body>
+              <form method="POST" id="SAMLRequestForm">
+                <input name="SAMLRequest" ・・・>
+              </form>
+              <script>document.getElementById("SAMLRequestForm").submit()</script>
+            </body>
+          </html>
+    SAMLRequest:
       type: object
       properties:
-        index:
-          type: integer
-          format: int64
-          minimum: 0
-          exclusiveMinimum: false
-          description: インデックス(リソース別時刻昇順順)
-        time:
-          type: integer
-          format: int64
-          description: ローソク足の時刻。UnixTime(GMT+9)形式
-        high:
-          type: number
-          format: float
-          minimum: 0
-          exclusiveMinimum: false
-          description: 高値
-        low:
-          type: number
-          format: float
-          minimum: 0
-          exclusiveMinimum: false
-          description: 安値
-        open:
-          type: number
-          format: float
-          minimum: 0
-          exclusiveMinimum: false
-          description: 始値
-        close:
-          type: number
-          format: float
-          minimum: 0
-          exclusiveMinimum: false
-          description: 終値
-      required:
-        - index
-        - time
-        - high
-        - low
-        - open
-        - close
-    tradeResult:
+        SAMLReqeust:
+          type: string
+          example: "PHNhbWxwOlJlc3BvbnNlIHhtbG5zOnNhbWxwPSJ1cm46b2FzaXM6bmFtZXM6d・・・"
+        RelayState:
+          type: string
+          example: "xxx"
+    SAMLResponse:
       type: object
       properties:
-        start_candle_index:
-          type: integer
-          format: int64
-          description: 取引を開始した位置 (ローソク足のインデックス)
-          example: 100
-        end_candle_index:
-          type: integer
-          format: int64
-          description: 取引が終了した位置 (ローソク足のインデックス)
-          example: 200
-        position:
-          $ref: "#/components/schemas/position"
-        result:
+        SAMLResponse:
           type: string
-          enum: [win, lose, even]
-          description: 取引の勝敗結果
-          example: win
-      required:
-        - start_candle_index
-        - end_candle_index
-        - position
-    authStatus:
-      type: object
-      properties:
-        status:
+          example: "PHNhbWxwOlJlc3BvbnNlIHhtbG5zOnNhbWxwPSJ1cm46b2FzaXM6bmFtZXM6d・・・"
+        RelayState:
           type: string
-          enum: [loggedIn, loggedOut]
-          description: ログイン状態
-        expires:
-          type: string
-          description: セッションの有効期限
-          example: 2030-01-01T00:00:00+0900
-      required:
-        - status
-        - expires
-    error:
+          example: "xxx"
+    Error:
       type: object
       properties:
         code:
           type: integer
-          description: エラーコード
-          example: 100023
-        error_name:
+          format: uint32
+          description: サーバー内部で使用しているエラーコード
+          example: "0x800001"
+        message:
           type: string
-          description: エラー名称 (多言語化非対応のためFE側での使用は控えること)
-          example: Type Error
-        arguments:
-          type: array
-          items:
-            type: string
-          description: エラーの要因となった名称。エラーコードによって渡されるエラー要因の数や内容は決まっている。
-          example: ['keyword']
+          description: エラーメッセージ (多言語化対象)
+          example: |
+            インターナルエラーが発生しました。
+            (エラーコード: 0x800001)
       required:
         - code
-        - error_name
+        - message
+    ErrorWithTime:
+      type: object
+      properties:
+        err:
+          $ref: "#/components/schemas/Error"
+        time:
+          type: string
+          example: "2024-08-14T11:19:12+09:00"
+      required:
+        - err
+        - time
+
 security: # 全てのエンドポイントに対してbearerの指定を要求する
   - bearerAuth: []
+
 paths:
-  /api/auth:
+  /saml/login:
     get:
       tags:
         - Auth API
-      description: ログイン状態を確認します
+      summary: ユーザをシングルサインオンさせるログインリクエストを作成し、FormのPOSTによってidPに送信するスクリプトタグを含んだHTMLを返却するエンドポイント。
+      security: []
+      parameters:
+        - name: X-Redirect-URL
+          in: header
+          required: true
+          description: シングルサインオン完了時にリダイレクトさせたいURLを指定する
+          schema:
+            type: string
+            example: "https://xxxxx/"
+        - name: X-Redirect-URL-On-Error
+          in: header
+          required: true
+          description: シングルサインオンエラー時にリダイレクトさせたいURLを指定する
+          schema:
+            type: string
+            example: "https://xxxxx/"
       responses:
         '200':
           description: 正常終了
-          content:
-            application/json:
+          headers:
+            Set-Cookie:
               schema:
-                $ref: "#/components/schemas/authStatus"
-    post:
-      tags:
-        - Auth API
-      description: ログインを行います
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                id:
-                  type: string
-                  description: ユーザID
-                  example: hoge@foo.co.jp
-                password:
-                  type: string
-                  description: ユーザパスワード
-                  example: hogefoobar
-              required:
-                - id
-                - password
-      responses:
-        '201':
-          description: 正常終了
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/authStatus"
-    delete:
-      tags:
-        - Auth API
-      description: ログアウトを行います
-      responses:
-        '204':
-          description: 正常終了
-  /api/auth/refresh:
-    post:
-      tags:
-        - Auth API
-      description: リフレッシュトークンの更新を行います
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-      responses:
-        '201':
-          description: 正常終了
-  /api/saml/login:
-    get:
-      tags:
-        - Auth API
-      description: シングルサインオンのAuthnRequestと作成と、AuthnRequestを送信するhtmlを返却します
-      responses:
-        '200':
-          description: 正常終了
+                type: string
+                example: sso_token=xxxx; Path=/saml/acs; HttpOnly
           content:
             text/html:
               schema:
+                $ref: "#/components/schemas/SAMLForm"
+        default:
+          description: シングルサインオンが許可されなかった場合
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /saml/acs:
+    post:
+      tags:
+        - Auth API
+      summary: IdPから受け取る認証レスポンス（SAMLアサーション）を処理するエンドポイント。
+      security: []
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/SAMLResponse"
+      responses:
+        '302':
+          description: |
+             正常終了<br>
+             (エラーが発生した場合はHttpヘッダのLocationに格納されれているURLにURLパラメータ(saml_error=1)が付与される)
+          headers:
+            Set-Cookie:
+              schema:
                 type: string
-                example: |
-                  <form method="post" id="SAMLRequestForm">
-                    <input type="hidden" name="SAMLRequest" value="[SAML REQUEST]" /><input id="SAMLSubmitButton" type="submit" value="Submit" />
-                  </form>
-                  <script>document.getElementById('SAMLSubmitButton').style.visibility="hidden";document.getElementById('SAMLRequestForm').submit();</script>
-  /api/saml/logout:
+                example: access_token=xxxx; Path=/; HttpOnly, refresh_token=xxxx; Path=/TODO; HttpOnly, saml_error_token=xxxx; Path=/saml/error; HttpOnly
+            Location:
+              schema:
+                type: string
+                example: "https://xxxxx/login?saml_error=1"
+              description: リダイレクト先のURL
+  /saml/logout:
     get:
       tags:
         - Auth API
-      description: シングルサインアウトのAuthnRequestの作成と、AuthnRequestを送信するhtmlを返却します
+      summary: ユーザをログアウトさせるログアウトリクエストを作成し、FormのPOSTによってidPに送信するスクリプトタグを含んだHTMLを返却するエンドポイント。
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: X-Redirect-URL
+          in: header
+          required: true
+          description: シングルログアウト完了時にリダイレクトさせたいURLを指定する
+          schema:
+            type: string
+            example: "https://xxxxx/"
+        - name: X-Redirect-URL-On-Error
+          in: header
+          required: true
+          description: シングルログアウトのエラー時にリダイレクトさせたいURLを指定する
+          schema:
+            type: string
+            example: "https://xxxxx/"
       responses:
         '200':
           description: 正常終了
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: slo_token=xxxx; Path=/saml/slo; HttpOnly
           content:
             text/html:
               schema:
+                $ref: "#/components/schemas/SAMLForm"
+        default:
+          description: シングルサインオンが許可されなかった場合
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /saml/slo:
+    post:
+      tags:
+        - Auth API
+      summary: IdPから受け取るログアウトリクエストを処理し、ユーザーをログアウトさせるエンドポイント。
+      security:
+        - cookieAuth: []
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/SAMLRequest"
+                - $ref: "#/components/schemas/SAMLResponse"
+      responses:
+        '200':
+          description: |
+            他SP起点のシングルログアウトが正常終了<br>
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/SAMLForm"
+        '302':
+          description: |
+             本SP起点のシングルログアウトが正常終了<br>
+             (エラーが発生した場合はHttpヘッダのLocationに格納されれているURLにURLパラメータ(saml_error=1)が付与される)
+          headers:
+            Set-Cookie:
+              schema:
                 type: string
-                example: |
-                  <form method="post" id="SAMLRequestForm">
-                    <input type="hidden" name="SAMLRequest" value="[SAML REQUEST]" /><input id="SAMLSubmitButton" type="submit" value="Submit" />
-                  </form>
-                  <script>document.getElementById('SAMLSubmitButton').style.visibility="hidden";document.getElementById('SAMLRequestForm').submit();</script>
-  /api/saml/acs:
-    post:
+                example: saml_error_token=xxxx; Path=/saml/error; HttpOnly
+            Location:
+              schema:
+                type: string
+                example: "https://xxxxx/login?saml_error=1"
+              description: リダイレクト先のURL
+  /saml/error:
+    get:
       tags:
         - Auth API
-      description: シングルログインのAuthnResponseを受信します
+      summary: SAMLログインのエラー詳細を返却するエンドポイント
+      security: []
       responses:
-        '201':
+        '200':
           description: 正常終了
-  /api/saml/slo:
-    post:
-      tags:
-        - Auth API
-      description: シングルログアウトのAuthnResponseを受信します
-      responses:
-        '201':
-          description: 正常終了
-  /api/resource/candles:
-    post:
-      tags:
-        - リソースAPI
-      description: ローソク足配列を保存する
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                  description: リソース名
-                  example: USDJPY:5M
-                csv_format:
-                  $ref: "#/components/schemas/csvFormat"
-                range:
-                  type: object
-                  properties:
-                    start_row:
-                      type: integer
-                      description: 保存するローソク足の開始日時 (日時のフォーマットはcsvに格納されているデータと同じにする)
-                      example: '2021.04.30 23:25:00'
-                    end_row:
-                      type: string
-                      description: 保存するローソク足の終了日時 (日時のフォーマットはcsvに格納されているデータと同じにする)
-                      example: '2021.04.30 23:25:00'
-                data:
-                  type: string
-                  format: binary
-                  description: ローソク足のデータが格納されたcsvのバイナリデータ
-                  example: "<csvファイルのバイナリデータ>"
-      responses:
-        '201':
-          description: ローソク足配列が正常に保存されたとき
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  resource_id:
-                    type: string
-                    description: 新しく払い出されたローソク足リソースのID
-                    example: 1234-5678-9012
-        '400':
-          description: パラメータのバリデーションエラー
+                $ref: "#/components/schemas/ErrorWithTime"
+        default:
+          description: 予期しないエラーが発生した場合
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/error"
-        '401':
-          description: 認証に失敗したとき
-        '409':
-          description: 同じリソース名が存在する場合
-        '500':
-          description: サーバーの内部エラーが発生したとき
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-    get:
-      tags:
-        - リソースAPI
-      description: ローソク足配列を取得する
-      parameters:
-        - in: query
-          name: resource_id
-          description: リソースID
-          required: true
-          schema:
-            type: string
-        - in: query
-          name: time_at
-          description: 取得するローソク足の時刻 (完全一致)
-          schema:
-            type: string
-        - in: query
-          name: time_including
-          description: 取得するローソク足の時刻 (この時間を含むローソク足を取得する)
-          schema:
-            type: string
-        - in: query
-          name: time_range_start
-          description: 取得するローソク足の開始時刻
-          schema:
-            type: string
-        - in: query
-          name: time_range_end
-          description: 取得するローソク足の終了時刻
-          schema:
-            type: string
-        - in: query
-          name: index
-          description: 取得するローソク足のインデックス (Unix時間で昇順に並べた順)
-          required: false
-          schema:
-            type: integer
-        - in: query
-          name: left
-          description: ローソク足配列のインデックスから過去方向に取得するローソク足の数
-          required: false
-          schema:
-            type: integer
-        - in: query
-          name: right
-          description: ローソク足配列のインデックスから未来方向に取得するローソク足の数
-          required: false
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: 取得に成功したとき
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total:
-                    type: integer
-                    minimum: 0
-                    exclusiveMinimum: false
-                    example: 100
-                    description: candlesの数
-                  candles:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/candle"
-        '400':
-          description: パラメータのバリデーションエラー
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-        '401':
-          description: 認証に失敗したとき
-        '404':
-          description: ローソク足リソースが存在しなかったとき
-        '500':
-          description: サーバーの内部エラーが発生したとき
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-    delete:
-      tags:
-        - リソースAPI
-      description: ローソク足配列を削除する
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                resource_ids:
-                  type: array
-                  description: 削除するローソク足リソースのID一覧
-                  example: [1234-5678-9012, 3456-7890-1234]
-                  items:
-                    type: string
-      responses:
-        '204':
-          description: 削除に成功したとき
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: パラメータのバリデーションエラー
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-        '401':
-          description: 認証に失敗したとき
-        '500':
-          description: サーバーの内部エラーが発生したとき
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-  /api/resource/candles/metadata:
-    get:
-      tags:
-        - リソースAPI
-      description: ローソク足リソースのメタデータを取得する
-      parameters:
-        - in: query
-          name: limit
-          description: 一度に取得するリストアイテムの数
-          required: true
-          schema:
-            type: integer
-        - in: query
-          name: page_token
-          description: ページトークン
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: keyword
-          description: リソース名の検索キーワード (前方後方一致のワイルドカード指定可能)
-          required: false
-          schema:
-            type: string
-      responses:
-        '200':
-          description: 取得に成功したとき
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total:
-                    type: integer
-                    description: itemsの数
-                    example: 1
-                  page_token:
-                    type: string
-                    description: ページトークン
-                    example: 1234-5678-9012
-                  items:
-                    type: array
-                    description: ローソク足リソースのメタデータ一覧
-                    items:
-                      type: object
-                      properties:
-                        resource_id:
-                          type: string
-                          description: ローソク足リソースのID
-                          example: 1234-5678-9012
-                        name:
-                          type: string
-                          description: リソース名
-                          example: USDJPY:5
-                        time_from:
-                          type: string
-                          description: 保存されているローソク足の最も古い日時
-                          example: 2014-10-10T13:50:40+09:00
-                        time_to:
-                          type: string
-                          description: 保存されているローソク足の最も新しい日時
-                          example: 2014-11-10T13:50:40+09:00
-                        num_candles:
-                          type: integer
-                          description: 保存されているローソク足の数
-                          example: 1022
-        '400':
-          description: パラメータのバリデーションエラー
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-        '401':
-          description: 認証に失敗したとき
-        '404':
-          description: ローソク足リソースが存在しなかったとき
-        '500':
-          description: サーバーの内部エラーが発生したとき
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-  /api/data/features:
-    post:
-      tags:
-        - 特徴抽出API
-      description: ローソク足の特徴を抽出し保存します
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                save:
-                  type: boolean
-                  description: データをサーバーに保存するか否かのフラグ値
-                resource_id:
-                  type: string
-                  description: ローソク足リソースのID
-                  example: 1234-5678-9012
-                feature_types:
-                  type: array
-                  description: 抽出する特徴のタイプ一覧
-                  example: [power_bar, elliott]
-                  items:
-                    $ref: '#/components/schemas/featureType'
-                parameters:
-                  type: object
-                  properties:
-                    left:
-                      type: integer
-                      description: 特徴の推定に使用する過去ローソク足の数
-                      example: 32
-              required:
-                - resource_id
-                - features
-      responses:
-        '200':
-          description: 特徴抽出に成功したとき
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  results:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        saved:
-                          type: boolean
-                          description: サーバーに抽出した特徴を保存したか否かのフラグ値
-                          example: true
-                        feature_id:
-                          type: string
-                          description: 特徴ID (サーバーに保存していない場合は空文字が返却される)
-                          example: 1234-5678-9012
-                        feature_type:
-                          $ref: '#/components/schemas/featureType'
-                        candle_indexes:
-                          type: array
-                          items:
-                            type: string
-                          description: 特徴の発生点となったローソク足のインデックス。発生点の解釈は特徴タイプやパラメータなどによって異なるため仕様を確認すること。
-                          example: [12, 33, 678]
-        '400':
-          description: パラメータのバリデーションエラー
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-        '401':
-          description: 認証に失敗したとき
-        '404':
-          description: 特徴が存在しなかったとき
-        '500':
-          description: サーバーの内部エラーが発生したとき
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-    get:
-      tags:
-        - 特徴抽出API
-      description: 抽出されたローソク足の特徴を取得します。
-      parameters:
-        - in: query
-          name: feature_ids
-          description: 特徴データID (複数指定の場合はカンマ区切り)
-          required: true
-          schema:
-            type: string
-        - in: query
-          name: limit
-          description: 一度に取得するアイテム数
-          required: false
-          schema:
-            type: integer
-        - in: query
-          name: page_token
-          description: ページトークン
-          required: false
-          schema:
-            type: string
-      responses:
-        '200':
-          description: 特徴の取得に成功したとき
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total:
-                    type: integer
-                    description: itemsの数
-                    example: 1
-                  page_token:
-                    type: string
-                    description: ページトークン
-                    example: 1234-5678-9012
-                  items:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        resource_id:
-                          type: string
-                          description: ローソク足リソースのID
-                          example: 1234-5678-9012
-                        feature_id:
-                          type: string
-                          description: 特徴ID
-                        feature_type:
-                          $ref: '#/components/schemas/featureType'
-                        candle_indexes:
-                          type: array
-                          description: 特徴の発生点となったローソク足のインデックス。発生点の解釈は特徴タイプやパラメータなどによって異なるため仕様を確認すること。
-                          example: [12, 33, 678]
-                          items:
-                            type: string
-        '400':
-          description: パラメータのバリデーションエラー
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-        '401':
-          description: 認証に失敗したとき
-        '404':
-          description: 特徴データが存在しなかったとき
-        '500':
-          description: サーバーの内部エラーが発生したとき
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-    delete:
-      tags:
-        - 特徴抽出API
-      description: 抽出されたローソク足の特徴を削除します
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                feature_ids:
-                  type: array
-                  description: 削除する特徴IDの一覧
-                  example: [1234-5678-9012, 3456-7890-1234]
-                  items:
-                    type: string
-              required:
-                - feature_ids
-      responses:
-        '200':
-          description: 特徴の削除に成功したとき
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: パラメータのバリデーションエラー
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-        '401':
-          description: 認証に失敗したとき
-        '500':
-          description: サーバーの内部エラーが発生したとき
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-  /api/data/resource/features/ids:
-    get:
-      tags:
-        - 特徴抽出API
-      description: リソース毎の特徴データのID一覧を取得します
-      parameters:
-        - in: query
-          name: limit
-          description: 一度に取得するアイテム数
-          required: false
-          schema:
-            type: integer
-        - in: query
-          name: page_token
-          description: ページトークン
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: resource_ids
-          description: リソースID (複数指定の場合はカンマ区切り)
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: feature_type
-          description: 特徴タイプ (複数指定の場合はカンマ区切り)
-          required: false
-          schema:
-            type: string
-            $ref: '#/components/schemas/featureType'
-      responses:
-        '200':
-          description: 特徴抽出に成功したとき
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total:
-                    type: integer
-                    description: itemsの数
-                    example: 1
-                  page_token:
-                    type: string
-                    description: ページトークン
-                    example: 1234-5678-9012
-                  items:
-                    type: array
-                    description: リソース別特徴IDの一覧
-                    items:
-                      type: object
-                      properties:
-                        resource_id:
-                          type: string
-                        features:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              feature_id:
-                                type: string
-                              feature_type:
-                                $ref: '#/components/schemas/featureType'
-        '400':
-          description: パラメータのバリデーションエラー
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-        '401':
-          description: 認証に失敗したとき
-        '404':
-          description: ローソク足リソースが存在しなかったとき
-        '500':
-          description: サーバーの内部エラーが発生したとき
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-  /api/test:
-    post:
-      tags:
-        - テストAPI
-      description: 過去データから取引を行い結果を返却します
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                save:
-                  type: boolean
-                  description: テスト結果をサーバーに保存するかのフラグ値
-                resource_id:
-                  type: string
-                  description: ローソク足リソースのID
-                trades:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      candle_index:
-                        type: integer
-                        format: int64
-                        minimum: 0
-                        exclusiveMinimum: false
-                      position:
-                        $ref: "#/components/schemas/position"
-                      loss_cut:
-                        type: number
-                        format: float
-                        description: ロスカットする価格
-                        example: 154.124
-                      take_profit:
-                        type: number
-                        format: float
-                        description: 利益を確定する価格
-                        example: 155.234
-                      timeout:
-                        type: integer
-                        description: 取引をタイムアウトとするローソク足の本数
-                        example: 100
-                    required:
-                      - candle_index
-                      - position
-                      - loss_cut
-                      - take_profit
-                      - timeout
-      responses:
-        '200':
-          description: 過去データを使用した取引に成功したとき
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  saved:
-                    type: boolean
-                    description: テスト結果をサーバーが保存したか否かを示すフラグ値
-                  test_result_id:
-                    type: string
-                    description: テスト結果ID (saveをfalseにした場合は返却されない)
-                    example: 1234-5678-9012
-                  total:
-                    type: integer
-                    description: resultsの数
-                    example: 100
-                  results:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/tradeResult"
-                required:
-                  - saved
-                  - total
-                  - results
-        '400':
-          description: パラメータのバリデーションエラー
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-        '401':
-          description: 認証に失敗したとき
-        '500':
-          description: サーバーの内部エラーが発生したとき
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-    get:
-      tags:
-        - テストAPI
-      description: 過去データでの取引結果を取得します
-      parameters:
-        - in: query
-          name: test_result_id
-          description: テスト結果データID
-          required: true
-          schema:
-            type: string
-        - in: query
-          name: limit
-          description: 一度に取得するアイテム数
-          required: false
-          schema:
-            type: integer
-        - in: query
-          name: page_token
-          description: ページトークン
-          required: false
-          schema:
-            type: string
-      responses:
-        '200':
-          description: 過去データを使用した取引結果の取得に成功したとき
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  page_token:
-                    type: string
-                    description: ページトークン
-                    example: 1234-5678-9012
-                  total:
-                    type: integer
-                    description: itemsの数
-                    example: 100
-                    minimum: 0
-                    exclusiveMinimum: false
-                  items:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/tradeResult"
-                required:
-                  - total
-                  - items
-        '400':
-          description: パラメータのバリデーションエラー
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-        '401':
-          description: 認証に失敗したとき
-        '500':
-          description: サーバーの内部エラーが発生したとき
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-    delete:
-      tags:
-        - テストAPI
-      description: 過去データでの取引結果を削除します
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              properties:
-                test_result_ids:
-                  type: string
-                  description: テスト結果ID (複数指定の場合はカンマ区切り)
-                  example: 1234-5678-9012,3456-7890-1234
-              required:
-                - test_result_ids
-      responses:
-        '204':
-          description: 取引結果の削除に成功したとき
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-        '400':
-          description: パラメータのバリデーションエラー
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-        '401':
-          description: 認証に失敗したとき
-        '404':
-          description: 削除対象が存在しなかったとき
-        '500':
-          description: サーバーの内部エラーが発生したとき
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-  /api/test/ids:
-    get:
-      tags:
-        - テストAPI
-      description: 取引結果IDの一覧を返却します
-      parameters:
-        - in: query
-          name: limit
-          description: 一度に取得するアイテム数
-          required: false
-          schema:
-            type: integer
-        - in: query
-          name: page_token
-          description: ページトークン
-          required: false
-          schema:
-            type: string
-      responses:
-        '200':
-          description: 取引結果の取得に成功したとき
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  page_token:
-                    type: string
-                    description: ページトークン
-                    example: 1234-5678-9012
-                  total:
-                    type: integer
-                    description: itemsの数
-                    example: 2
-                    minimum: 0
-                    exclusiveMinimum: false
-                  items:
-                    type: array
-                    description: 取引結果IDの一覧
-                    items:
-                      type: string
-                    example: [1234-5678-9012,3456-7890-1234]
-                required:
-                  - total
-                  - items
-        '400':
-          description: パラメータのバリデーションエラー
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
-        '401':
-          description: 認証に失敗したとき
-        '500':
-          description: サーバーの内部エラーが発生したとき
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error"
+                $ref: "#/components/schemas/Error"

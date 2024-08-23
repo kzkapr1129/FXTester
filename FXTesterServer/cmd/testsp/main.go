@@ -3,9 +3,7 @@ package main
 import (
 	"fmt"
 	"fxtester/internal/common"
-	"fxtester/internal/gen"
 	"fxtester/internal/lang"
-	"fxtester/service"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -18,10 +16,7 @@ func main() {
 	e := echo.New()
 
 	// サービスの初期化
-	hdr := service.NewBarService()
-	if err := hdr.Init(); err != nil {
-		e.Logger.Fatalf("failed to load config: %v", err)
-	}
+	hdr := NewTestSpService()
 
 	// ミドルウェアの設定
 	e.Use(middleware.Recover())
@@ -36,9 +31,13 @@ func main() {
 	e.Use(lang.ErrorHandler())
 
 	// サービスの開始
-	gen.RegisterHandlers(e, hdr)
+	e.GET("/", hdr.GetHome)
+	e.POST("/saml/acs", hdr.PostSamlAcs)
+	e.GET("/saml/login", hdr.GetSamlLogin)
+	e.GET("/saml/logout", hdr.GetSamlLogout)
+	e.POST("/saml/slo", hdr.PostSamlSlo)
 
-	addr := fmt.Sprintf(":%d", common.GetConfig().Server.Port)
+	addr := fmt.Sprintf(":%d", TestServerPort)
 	sslCertPath := common.GetConfig().Server.Ssl.CertPath
 	sslKeyPath := common.GetConfig().Server.Ssl.KeyPath
 	e.Logger.Fatal(e.StartTLS(addr, sslCertPath, sslKeyPath))

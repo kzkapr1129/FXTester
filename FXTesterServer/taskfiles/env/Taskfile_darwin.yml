@@ -12,3 +12,4 @@ tasks:
         brew install direnv
       fi
      - ./taskfiles/env/darwin/apply.sh
+     - sudo sh ./taskfiles/env/darwin/apply_hosts.sh
