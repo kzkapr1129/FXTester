@@ -148,7 +148,7 @@ func (s *SamlClient) ExecuteSamlAcs(ctx echo.Context) (lastError error) {
 			ctx.Logger().Error(lastError)
 
 			// エラーレスポンスを作成
-			_, res := lang.MakeErrorResponse(ctx, lastError)
+			_, res := lang.ConvertToGenError(ctx, lastError)
 			// エラーの詳細をクッキーに保存
 			net.CreateSamlErrorSession(ctx.Response().Writer, *res)
 			// リダイレクト先にURLパラメータでエラー内容を通知
@@ -396,7 +396,7 @@ func (c *SamlClient) executeSamlSloByMySp(ctx echo.Context) (lastError error) {
 			// executeSamlSloByMySp()がエラーを返却した場合
 
 			// エラーレスポンスを作成
-			_, res := lang.MakeErrorResponse(ctx, lastError)
+			_, res := lang.ConvertToGenError(ctx, lastError)
 			// エラーの詳細をクッキーに保存
 			net.CreateSamlErrorSession(ctx.Response().Writer, *res)
 			// リダイレクト先にURLパラメータでエラー内容を通知

@@ -62,7 +62,7 @@ func Test_ErrorHandler(t *testing.T) {
 			wantErr:          false,
 			wantBody:         true,
 			wantErrorCode:    ErrCodeUnknownErrorObject,
-			wantErrorMessage: "インターナルエラーが発生しました。\n(エラーコード: 0x80000002)",
+			wantErrorMessage: "test-error",
 		},
 		{
 			name: "test3",
@@ -78,8 +78,8 @@ func Test_ErrorHandler(t *testing.T) {
 			},
 			wantErr:          false,
 			wantBody:         true,
-			wantErrorCode:    ErrCodeUnknownErrorCode,
-			wantErrorMessage: "インターナルエラーが発生しました。\n(エラーコード: 0x80000003)",
+			wantErrorCode:    100,
+			wantErrorMessage: fmt.Sprintf("インターナルサーバーエラーが発生しました。\n(エラーコード: 0x%x)", 100),
 		},
 		{
 			name: "test4",
@@ -164,7 +164,7 @@ func Test_ErrorHandler(t *testing.T) {
 			wantErr:          false,
 			wantBody:         true,
 			wantErrorCode:    ErrCodePanic,
-			wantErrorMessage: "インターナルエラーが発生しました。\n(エラーコード: 0x80000001)",
+			wantErrorMessage: "インターナルサーバーエラーが発生しました。\n(エラーコード: 0x80000001)",
 		},
 	}
 

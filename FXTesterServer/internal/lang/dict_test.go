@@ -21,7 +21,7 @@ func Test_GetDict(t *testing.T) {
 		want string
 	}{
 		{
-			name: "インターナルエラー(ja)",
+			name: "インターナルサーバーエラー(ja)",
 			args: args{
 				ctx: func() echo.Context {
 					req := httptest.NewRequest("GET", "http://localhost", nil)
@@ -29,15 +29,15 @@ func Test_GetDict(t *testing.T) {
 					rec := httptest.NewRecorder()
 					return echo.New().NewContext(req, rec)
 				}(),
-				errCode: "InternalError",
+				errCode: "InternalServerError",
 				parameter: []interface{}{
 					0x123,
 				},
 			},
-			want: "インターナルエラーが発生しました。\n(エラーコード: 0x123)",
+			want: "インターナルサーバーエラーが発生しました。\n(エラーコード: 0x123)",
 		},
 		{
-			name: "インターナルエラー(ja-JP)",
+			name: "インターナルサーバーエラー(ja-JP)",
 			args: args{
 				ctx: func() echo.Context {
 					req := httptest.NewRequest("GET", "http://localhost", nil)
@@ -45,15 +45,15 @@ func Test_GetDict(t *testing.T) {
 					rec := httptest.NewRecorder()
 					return echo.New().NewContext(req, rec)
 				}(),
-				errCode: "InternalError",
+				errCode: "InternalServerError",
 				parameter: []interface{}{
 					0x123,
 				},
 			},
-			want: "インターナルエラーが発生しました。\n(エラーコード: 0x123)",
+			want: "インターナルサーバーエラーが発生しました。\n(エラーコード: 0x123)",
 		},
 		{
-			name: "インターナルエラー(*)",
+			name: "インターナルサーバーエラー(*)",
 			args: args{
 				ctx: func() echo.Context {
 					req := httptest.NewRequest("GET", "http://localhost", nil)
@@ -61,15 +61,15 @@ func Test_GetDict(t *testing.T) {
 					rec := httptest.NewRecorder()
 					return echo.New().NewContext(req, rec)
 				}(),
-				errCode: "InternalError",
+				errCode: "InternalServerError",
 				parameter: []interface{}{
 					0x123,
 				},
 			},
-			want: "インターナルエラーが発生しました。\n(エラーコード: 0x123)",
+			want: "インターナルサーバーエラーが発生しました。\n(エラーコード: 0x123)",
 		},
 		{
-			name: "インターナルエラー(ja:0.5, en)",
+			name: "インターナルサーバーエラー(ja:0.5, en)",
 			args: args{
 				ctx: func() echo.Context {
 					req := httptest.NewRequest("GET", "http://localhost", nil)
@@ -77,15 +77,15 @@ func Test_GetDict(t *testing.T) {
 					rec := httptest.NewRecorder()
 					return echo.New().NewContext(req, rec)
 				}(),
-				errCode: "InternalError",
+				errCode: "InternalServerError",
 				parameter: []interface{}{
 					0x123,
 				},
 			},
-			want: "インターナルエラーが発生しました(要英訳)。\n(エラーコード: 0x123)",
+			want: "インターナルサーバーエラーが発生しました(要英訳)。\n(エラーコード: 0x123)",
 		},
 		{
-			name: "インターナルエラー(ja:0.5, en:0.3)",
+			name: "インターナルサーバーエラー(ja:0.5, en:0.3)",
 			args: args{
 				ctx: func() echo.Context {
 					req := httptest.NewRequest("GET", "http://localhost", nil)
@@ -93,15 +93,15 @@ func Test_GetDict(t *testing.T) {
 					rec := httptest.NewRecorder()
 					return echo.New().NewContext(req, rec)
 				}(),
-				errCode: "InternalError",
+				errCode: "InternalServerError",
 				parameter: []interface{}{
 					0x123,
 				},
 			},
-			want: "インターナルエラーが発生しました。\n(エラーコード: 0x123)",
+			want: "インターナルサーバーエラーが発生しました。\n(エラーコード: 0x123)",
 		},
 		{
-			name: "インターナルエラー(未指定)",
+			name: "インターナルサーバーエラー(未指定)",
 			args: args{
 				ctx: func() echo.Context {
 					req := httptest.NewRequest("GET", "http://localhost", nil)
@@ -109,12 +109,12 @@ func Test_GetDict(t *testing.T) {
 					rec := httptest.NewRecorder()
 					return echo.New().NewContext(req, rec)
 				}(),
-				errCode: "InternalError",
+				errCode: "InternalServerError",
 				parameter: []interface{}{
 					0x123,
 				},
 			},
-			want: "インターナルエラーが発生しました。\n(エラーコード: 0x123)",
+			want: "インターナルサーバーエラーが発生しました。\n(エラーコード: 0x123)",
 		},
 	}
 
