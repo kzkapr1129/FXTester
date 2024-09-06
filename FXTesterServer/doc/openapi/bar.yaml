@@ -75,14 +75,17 @@ components:
     CreateFeaturePointsRequest:
       type: object
       properties:
-        fileType:
+        type:
           type: string
           enum: [MT4_CSV]
           description: ファイルタイプ
-        fileName:
+        file:
           type: string
           format: binary
           description: ファイルのテキストまたはバイナリデータ
+      required:
+        - type
+        - file
     CreateFeaturePointsResult:
       type: object
       properties:

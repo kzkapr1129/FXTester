@@ -66,10 +66,13 @@ const (
 	ErrInvalidNameId              ErrorCode = 0x80000029 // アサーションに格納されたNameIdとセッションに格納されたEmailが不一致
 	ErrEmptyLogoutRequestId       ErrorCode = 0x80000030 // LogoutRequest.IDが未指定
 	ErrOperationNotAllow          ErrorCode = 0x80000031 // 許可されていない操作
+	ErrParseMultipartForm         ErrorCode = 0x80000032 // multipart/form-dataのパラメータのパースエラー
 
 	// ユーザ起因のエラー
 	ErrCodeForbiddenCharacterError ErrorCode = 0x81010001 // 禁止文字エラー
 	ErrCodeParameterMissing        ErrorCode = 0x81010002 // 必須パラメータの未指定
+	ErrInvalidParameterError       ErrorCode = 0x81010003 // パラメータに予期しない値が設定された場合のエラー
+	ErrTooLargeFileError           ErrorCode = 0x81010004 // アップロードされたファイルのサイズが上限に達した場合のエラー
 )
 
 type ErrorTypeDetail struct {
@@ -87,15 +90,27 @@ var errorTypeDetails = []ErrorTypeDetail{
 		displayErrorCode: true,
 	},
 	{
-		errorCodePattern: regexp.MustCompile("0x81010001"),
+		errorCodePattern: regexp.MustCompile(fmt.Sprintf("0x%x", ErrCodeForbiddenCharacterError)),
 		statusCode:       http.StatusBadRequest,
 		dictKey:          "ForbiddenCharacterError",
 		displayErrorCode: true,
 	},
 	{
-		errorCodePattern: regexp.MustCompile("0x81010002"),
+		errorCodePattern: regexp.MustCompile(fmt.Sprintf("0x%x", ErrCodeParameterMissing)),
 		statusCode:       http.StatusBadRequest,
 		dictKey:          "MissingParameterError",
+		displayErrorCode: true,
+	},
+	{
+		errorCodePattern: regexp.MustCompile(fmt.Sprintf("0x%x", ErrInvalidParameterError)),
+		statusCode:       http.StatusBadRequest,
+		dictKey:          "InvalidParameterError",
+		displayErrorCode: true,
+	},
+	{
+		errorCodePattern: regexp.MustCompile(fmt.Sprintf("0x%x", ErrTooLargeFileError)),
+		statusCode:       http.StatusBadRequest,
+		dictKey:          "TooLargeFileError",
 		displayErrorCode: true,
 	},
 }

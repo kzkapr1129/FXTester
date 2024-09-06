@@ -3,6 +3,12 @@ dict:
     name:
       ja: 名前
       en: Name
+    file:
+      ja: ファイル
+      en: File
+    type:
+      ja: タイプ
+      en: Type
 
   messages:
     InternalServerError:
@@ -25,6 +31,20 @@ dict:
         (エラーコード: 0x%x)
       en: |
         必須指定の項目が未指定です[%s]
+        (エラーコード: 0x%x)
+    InvalidParameterError:
+      ja: |
+        %sに不正なパラメータが指定されたました
+        (エラーコード: 0x%x)
+      en: |
+        %sに不正なパラメータが指定されたました
+        (エラーコード: 0x%x)
+    TooLargeFileError:
+      ja: |
+        リクエストパラメータのサイズ上限を超えました。
+        (エラーコード: 0x%x)
+      en: |
+        リクエストパラメータのサイズ上限を超えました。
         (エラーコード: 0x%x)
 alias:
   "\\*": "ja"
