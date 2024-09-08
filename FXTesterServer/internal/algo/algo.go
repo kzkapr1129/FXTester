@@ -57,7 +57,7 @@ func (c *Candle) isNegative() bool {
 	return c.Close < c.Open
 }
 
-func FindZigzagPeak(candles []Candle) []ZigzagResult {
+func FindZigzagPeakToBottom(candles []Candle) []ZigzagResult {
 	results := make([]ZigzagResult, 0)
 
 	for i := 0; i < len(candles); i++ {
@@ -87,7 +87,7 @@ func FindZigzagPeak(candles []Candle) []ZigzagResult {
 		// 経過時間
 		x := bottomIndex - peakIndex
 		// Y軸のΔ
-		y := peakCandle.BoxMax() - bottomCandle.BoxMin()
+		y := bottomCandle.BoxMin() - peakCandle.BoxMax()
 		// 速度を計算
 		velocity := y / float64(x)
 
@@ -102,6 +102,68 @@ func FindZigzagPeak(candles []Candle) []ZigzagResult {
 
 		// 同じ箇所の判定を避けるため、検査済みのインデックスまで進める
 		i = bottomIndex
+	}
+
+	// slices.SortFunc(results, func(i, j ZigzagResult) int {
+	// 	if i.Velocity == j.Velocity {
+	// 		return 0
+	// 	}
+	// 	return func() int {
+	// 		if i.Velocity > j.Velocity {
+	// 			return -1
+	// 		} else {
+	// 			return 1
+	// 		}
+	// 	}()
+	// })
+
+	return results
+}
+
+func FindZigzagBottomToPeak(candles []Candle) []ZigzagResult {
+	results := make([]ZigzagResult, 0)
+
+	for i := 0; i < len(candles); i++ {
+		// 安値更新が止まった場所を探す
+		bottomIndex, peakStart, bottomCandle, err := findBottom(candles, i)
+		if err != nil {
+			// プログラムのミス
+			panic(err)
+		}
+
+		// 高値更新が止まった場所を探す
+		peakIndex, _, peakCandle, err := findPeak(candles, peakStart)
+		if err != nil {
+			// プログラムのミス
+			panic(err)
+		}
+
+		if peakIndex <= bottomIndex {
+			/*
+			 * グラフが安値更新しかしていない場合、`peakIndex == bottomIndex`となる可能性がある。
+			 * この場合は検出なしとして処理する
+			 */
+			break
+		}
+
+		// 経過時間
+		x := peakIndex - bottomIndex
+		// Y軸のΔ
+		y := peakCandle.BoxMax() - bottomCandle.BoxMin()
+		// 速度を計算
+		velocity := y / float64(x)
+
+		results = append(results, ZigzagResult{
+			Info:        candles[bottomIndex].Label,
+			PeakIndex:   peakIndex,
+			BottomIndex: bottomIndex,
+			Velocity:    velocity,
+			Delta:       y,
+			Kind:        Bottom,
+		})
+
+		// 同じ箇所の判定を避けるため、検査済みのインデックスまで進める
+		i = peakIndex
 	}
 
 	// slices.SortFunc(results, func(i, j ZigzagResult) int {
