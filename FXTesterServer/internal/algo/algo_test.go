@@ -48,10 +48,10 @@ func Test_FindZigzagPeak(t *testing.T) {
 					notFounds := []string{}
 					for _, result := range src {
 						contains := slices.ContainsFunc(dest, func(z ZigzagResult) bool {
-							return result.Info == z.Info
+							return result.Time.Equal(z.Time)
 						})
 						if !contains {
-							notFounds = append(notFounds, result.Info)
+							notFounds = append(notFounds, result.Time.Format("2006-01-02"))
 						}
 					}
 					if 0 < len(notFounds) {
@@ -64,13 +64,13 @@ func Test_FindZigzagPeak(t *testing.T) {
 				// 結果の内容チェック
 				for _, result := range results {
 					expectIndex := slices.IndexFunc(tt.wantResults, func(v ZigzagResult) bool {
-						return v.Info == result.Info
+						return v.Time.Equal(result.Time)
 					})
 					if expectIndex != -1 {
 						expect := tt.wantResults[expectIndex]
 						if result.PeakIndex != expect.PeakIndex || result.BottomIndex != expect.BottomIndex {
 							t.Errorf("Couldn't match indexes: info=%s expect=(%d,%d) actual=(%d, %d)",
-								result.Info,
+								result.Time.Format("2006-01-02"),
 								expect.PeakIndex, expect.BottomIndex,
 								result.PeakIndex, result.BottomIndex)
 						}
@@ -127,10 +127,10 @@ func Test_FindZigzagBottom(t *testing.T) {
 					notFounds := []string{}
 					for _, result := range src {
 						contains := slices.ContainsFunc(dest, func(z ZigzagResult) bool {
-							return result.Info == z.Info
+							return result.Time.Equal(z.Time)
 						})
 						if !contains {
-							notFounds = append(notFounds, result.Info)
+							notFounds = append(notFounds, result.Time.Format("2006-01-02"))
 						}
 					}
 					if 0 < len(notFounds) {
@@ -143,13 +143,13 @@ func Test_FindZigzagBottom(t *testing.T) {
 				// 結果の内容チェック
 				for _, result := range results {
 					expectIndex := slices.IndexFunc(tt.wantResults, func(v ZigzagResult) bool {
-						return v.Info == result.Info
+						return v.Time.Equal(result.Time)
 					})
 					if expectIndex != -1 {
 						expect := tt.wantResults[expectIndex]
 						if result.PeakIndex != expect.PeakIndex || result.BottomIndex != expect.BottomIndex {
 							t.Errorf("Couldn't match indexes: info=%s expect=(%d,%d) actual=(%d, %d)",
-								result.Info,
+								result.Time.Format("2006-01-02"),
 								expect.PeakIndex, expect.BottomIndex,
 								result.PeakIndex, result.BottomIndex)
 						}

@@ -3,10 +3,11 @@ package algo
 import (
 	"errors"
 	"math"
+	"time"
 )
 
 type Candle struct {
-	Label string
+	Time  time.Time
 	High  float64
 	Open  float64
 	Close float64
@@ -21,7 +22,7 @@ const (
 )
 
 type ZigzagResult struct {
-	Info        string
+	Time        time.Time
 	PeakIndex   int
 	BottomIndex int
 	Velocity    float64
@@ -92,7 +93,7 @@ func FindZigzagPeakToBottom(candles []Candle) []ZigzagResult {
 		velocity := y / float64(x)
 
 		results = append(results, ZigzagResult{
-			Info:        candles[peakIndex].Label,
+			Time:        candles[peakIndex].Time,
 			PeakIndex:   peakIndex,
 			BottomIndex: bottomIndex,
 			Velocity:    velocity,
@@ -154,7 +155,7 @@ func FindZigzagBottomToPeak(candles []Candle) []ZigzagResult {
 		velocity := y / float64(x)
 
 		results = append(results, ZigzagResult{
-			Info:        candles[bottomIndex].Label,
+			Time:        candles[bottomIndex].Time,
 			PeakIndex:   peakIndex,
 			BottomIndex: bottomIndex,
 			Velocity:    velocity,

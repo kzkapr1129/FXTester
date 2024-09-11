@@ -1,44 +1,81 @@
 package algo
 
+import (
+	"fmt"
+	"regexp"
+	"strconv"
+	"time"
+)
+
+var strToTime func(v string) time.Time = func() func(v string) time.Time {
+	r := regexp.MustCompile(`(\d{4})/(\d{2})/(\d{2})`)
+
+	return func(v string) time.Time {
+		s := r.FindStringSubmatch(v)
+		fmt.Println(s)
+		if len(s) < 3 {
+			panic("invalid v: " + v)
+		}
+
+		year, err := strconv.Atoi(s[1])
+		if err != nil {
+			panic("invalid v: " + v)
+		}
+
+		month, err := strconv.Atoi(s[2])
+		if err != nil {
+			panic("invalid v: " + v)
+		}
+
+		day, err := strconv.Atoi(s[3])
+		if err != nil {
+			panic("invalid v: " + v)
+		}
+
+		return time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.Local)
+
+	}
+}()
+
 // 日経225 (週足): 2023/3/17〜2024/4/19
 var TestDataNikkei225Week = []Candle{
 	{
-		Label: "2023/03/17",
+		Time:  strToTime("2023/03/17"),
 		Open:  27886.21,
 		High:  27906.97,
 		Low:   26632.92,
 		Close: 27333.79,
 	},
 	{
-		Label: "2023/03/24",
+		Time:  strToTime("2023/03/24"),
 		Open:  27253.73,
 		High:  27520.97,
 		Low:   26945.67,
 		Close: 27385.25,
 	},
 	{
-		Label: "2023/03/31",
+		Time:  strToTime("2023/03/31"),
 		Open:  27482.39,
 		High:  28124.64,
 		Low:   27359.72,
 		Close: 28041.48,
 	},
 	{
-		Label: "2023/04/07",
+		Time:  strToTime("2023/04/07"),
 		Open:  28203.35,
 		High:  28287.42,
 		Low:   27427.66,
 		Close: 27518.31,
 	},
 	{
-		Label: "2023/04/14",
+		Time:  strToTime("2023/04/14"),
 		Open:  27658.52,
 		High:  28515.51,
 		Low:   27597.18,
 		Close: 28493.47,
 	},
 	{
-		Label: "2023/04/21",
+		Time:  strToTime("2023/04/21"),
 		Open:  28537.99,
 		High:  28778.37,
 		Low:   28414.98,
@@ -46,7 +83,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/04/28",
+		Time:  strToTime("2023/04/28"),
 		Open:  28631.78,
 		High:  28879.24,
 		Low:   28241.67,
@@ -54,7 +91,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/05/02",
+		Time:  strToTime("2023/05/02"),
 		Open:  29058.05,
 		High:  29278.80,
 		Low:   29016.83,
@@ -62,7 +99,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/05/12",
+		Time:  strToTime("2023/05/12"),
 		Open:  29095.46,
 		High:  29426.06,
 		Low:   28931.81,
@@ -70,7 +107,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/05/19",
+		Time:  strToTime("2023/05/19"),
 		Open:  29547.04,
 		High:  30924.57,
 		Low:   29475.97,
@@ -78,7 +115,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/05/26",
+		Time:  strToTime("2023/05/26"),
 		Open:  30735.71,
 		High:  31352.53,
 		Low:   30558.14,
@@ -86,7 +123,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/06/02",
+		Time:  strToTime("2023/06/02"),
 		Open:  31388.01,
 		High:  31560.43,
 		Low:   30785.98,
@@ -94,7 +131,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/06/09",
+		Time:  strToTime("2023/06/09"),
 		Open:  31864.12,
 		High:  32708.53,
 		Low:   31420.45,
@@ -102,7 +139,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/06/16",
+		Time:  strToTime("2023/06/16"),
 		Open:  32412.12,
 		High:  33772.76,
 		Low:   32280.54,
@@ -110,7 +147,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/06/23",
+		Time:  strToTime("2023/06/23"),
 		Open:  33768.69,
 		High:  33772.89,
 		Low:   32575.56,
@@ -118,7 +155,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/06/30",
+		Time:  strToTime("2023/06/30"),
 		Open:  32647.08,
 		High:  33527.98,
 		Low:   32306.99,
@@ -126,7 +163,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/07/07",
+		Time:  strToTime("2023/07/07"),
 		Open:  33517.60,
 		High:  33762.81,
 		Low:   32327.90,
@@ -134,7 +171,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/07/14",
+		Time:  strToTime("2023/07/14"),
 		Open:  32393.46,
 		High:  32780.63,
 		Low:   31791.71,
@@ -142,7 +179,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/07/21",
+		Time:  strToTime("2023/07/21"),
 		Open:  32457.18,
 		High:  32896.03,
 		Low:   32080.95,
@@ -150,7 +187,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/07/28",
+		Time:  strToTime("2023/07/28"),
 		Open:  32648.14,
 		High:  32938.59,
 		Low:   32037.55,
@@ -158,7 +195,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/08/04",
+		Time:  strToTime("2023/08/04"),
 		Open:  33128.83,
 		High:  33488.77,
 		Low:   31934.35,
@@ -166,7 +203,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/08/10",
+		Time:  strToTime("2023/08/10"),
 		Open:  31921.28,
 		High:  32539.88,
 		Low:   31830.23,
@@ -174,7 +211,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/08/18",
+		Time:  strToTime("2023/08/18"),
 		Open:  32456.72,
 		High:  32613.99,
 		Low:   31275.25,
@@ -182,7 +219,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/08/25",
+		Time:  strToTime("2023/08/25"),
 		Open:  31552.85,
 		High:  32297.91,
 		Low:   31409.86,
@@ -190,7 +227,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/09/01",
+		Time:  strToTime("2023/09/01"),
 		Open:  31915.68,
 		High:  32845.46,
 		Low:   31881.93,
@@ -198,7 +235,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/09/08",
+		Time:  strToTime("2023/09/08"),
 		Open:  32797.32,
 		High:  33322.45,
 		Low:   32512.80,
@@ -206,7 +243,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/09/15",
+		Time:  strToTime("2023/09/15"),
 		Open:  32690.54,
 		High:  33634.31,
 		Low:   32391.69,
@@ -214,7 +251,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/09/22",
+		Time:  strToTime("2023/09/22"),
 		Open:  33296.23,
 		High:  33337.23,
 		Low:   32154.53,
@@ -222,7 +259,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/09/29",
+		Time:  strToTime("2023/09/29"),
 		Open:  32517.26,
 		High:  32722.22,
 		Low:   31674.42,
@@ -230,7 +267,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/10/06",
+		Time:  strToTime("2023/10/06"),
 		Open:  32101.97,
 		High:  32401.58,
 		Low:   30487.67,
@@ -238,7 +275,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/10/13",
+		Time:  strToTime("2023/10/13"),
 		Open:  31314.67,
 		High:  32533.08,
 		Low:   31314.67,
@@ -246,7 +283,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/10/20",
+		Time:  strToTime("2023/10/20"),
 		Open:  31983.04,
 		High:  32260.77,
 		Low:   31093.90,
@@ -254,7 +291,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/10/27",
+		Time:  strToTime("2023/10/27"),
 		Open:  31151.98,
 		High:  31466.92,
 		Low:   30551.67,
@@ -262,7 +299,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/11/02",
+		Time:  strToTime("2023/11/02"),
 		Open:  30663.48,
 		High:  32087.13,
 		Low:   30538.29,
@@ -270,7 +307,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/11/10",
+		Time:  strToTime("2023/11/10"),
 		Open:  32450.82,
 		High:  32766.54,
 		Low:   32049.34,
@@ -278,7 +315,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/11/17",
+		Time:  strToTime("2023/11/17"),
 		Open:  32818.15,
 		High:  33614.13,
 		Low:   32499.28,
@@ -286,7 +323,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/11/24",
+		Time:  strToTime("2023/11/24"),
 		Open:  33559.62,
 		High:  33853.46,
 		Low:   33182.99,
@@ -294,7 +331,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/12/01",
+		Time:  strToTime("2023/12/01"),
 		Open:  33710.03,
 		High:  33811.41,
 		Low:   33161.07,
@@ -302,7 +339,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/12/08",
+		Time:  strToTime("2023/12/08"),
 		Open:  33318.07,
 		High:  33452.13,
 		Low:   32205.38,
@@ -310,7 +347,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/12/15",
+		Time:  strToTime("2023/12/15"),
 		Open:  32665.09,
 		High:  33172.13,
 		Low:   32515.04,
@@ -318,7 +355,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/12/22",
+		Time:  strToTime("2023/12/22"),
 		Open:  32769.23,
 		High:  33824.06,
 		Low:   32541.23,
@@ -326,7 +363,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2023/12/29",
+		Time:  strToTime("2023/12/29"),
 		Open:  33414.51,
 		High:  33755.75,
 		Low:   33181.36,
@@ -334,7 +371,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/01/05",
+		Time:  strToTime("2024/01/05"),
 		Open:  33193.05,
 		High:  33568.04,
 		Low:   32693.18,
@@ -342,7 +379,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/01/12",
+		Time:  strToTime("2024/01/12"),
 		Open:  33704.83,
 		High:  35839.65,
 		Low:   33600.32,
@@ -350,7 +387,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/01/19",
+		Time:  strToTime("2024/01/19"),
 		Open:  35634.12,
 		High:  36239.22,
 		Low:   35371.25,
@@ -358,7 +395,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/02/02",
+		Time:  strToTime("2024/02/02"),
 		Open:  35814.29,
 		High:  36441.09,
 		Low:   35704.58,
@@ -366,7 +403,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/02/09",
+		Time:  strToTime("2024/02/09"),
 		Open:  36419.34,
 		High:  37287.26,
 		Low:   35854.63,
@@ -374,7 +411,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/02/16",
+		Time:  strToTime("2024/02/16"),
 		Open:  37248.36,
 		High:  38865.06,
 		Low:   37184.10,
@@ -382,7 +419,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/02/22",
+		Time:  strToTime("2024/02/22"),
 		Open:  38473.41,
 		High:  39156.97,
 		Low:   38095.15,
@@ -390,7 +427,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/03/01",
+		Time:  strToTime("2024/03/01"),
 		Open:  39320.64,
 		High:  39990.23,
 		Low:   38876.81,
@@ -398,7 +435,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/03/08",
+		Time:  strToTime("2024/03/08"),
 		Open:  40201.76,
 		High:  40472.11,
 		Low:   39518.40,
@@ -406,7 +443,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/03/15",
+		Time:  strToTime("2024/03/15"),
 		Open:  39232.14,
 		High:  39241.28,
 		Low:   38271.38,
@@ -414,7 +451,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/03/22",
+		Time:  strToTime("2024/03/22"),
 		Open:  38960.99,
 		High:  41087.75,
 		Low:   38935.47,
@@ -422,7 +459,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/03/29",
+		Time:  strToTime("2024/03/29"),
 		Open:  40798.96,
 		High:  40979.36,
 		Low:   40054.06,
@@ -430,7 +467,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/04/05",
+		Time:  strToTime("2024/04/05"),
 		Open:  40646.70,
 		High:  40697.22,
 		Low:   38774.24,
@@ -438,7 +475,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/04/12",
+		Time:  strToTime("2024/04/12"),
 		Open:  39391.98,
 		High:  39774.82,
 		Low:   39065.31,
@@ -446,7 +483,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/04/19",
+		Time:  strToTime("2024/04/19"),
 		Open:  39056.93,
 		High:  39232.80,
 		Low:   36733.06,
@@ -454,7 +491,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/04/26",
+		Time:  strToTime("2024/04/26"),
 		Open:  37240.93,
 		High:  38460.08,
 		Low:   37052.63,
@@ -462,7 +499,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/05/02",
+		Time:  strToTime("2024/05/02"),
 		Open:  38312.66,
 		High:  38608.17,
 		Low:   37958.19,
@@ -470,7 +507,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/05/10",
+		Time:  strToTime("2024/05/10"),
 		Open:  38636.23,
 		High:  38863.14,
 		Low:   38072.24,
@@ -478,7 +515,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/05/17",
+		Time:  strToTime("2024/05/17"),
 		Open:  38211.61,
 		High:  38949.38,
 		Low:   37969.58,
@@ -486,7 +523,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/05/24",
+		Time:  strToTime("2024/05/24"),
 		Open:  38761.71,
 		High:  39437.16,
 		Low:   38367.70,
@@ -494,7 +531,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/05/31",
+		Time:  strToTime("2024/05/31"),
 		Open:  38766.21,
 		High:  39141.99,
 		Low:   37617.00,
@@ -502,7 +539,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/06/07",
+		Time:  strToTime("2024/06/07"),
 		Open:  38734.95,
 		High:  39032.50,
 		Low:   38343.98,
@@ -510,7 +547,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/06/14",
+		Time:  strToTime("2024/06/14"),
 		Open:  38689.78,
 		High:  39336.66,
 		Low:   38554.75,
@@ -518,7 +555,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/06/21",
+		Time:  strToTime("2024/06/21"),
 		Open:  38440.98,
 		High:  38797.97,
 		Low:   37950.20,
@@ -526,7 +563,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/06/28",
+		Time:  strToTime("2024/06/28"),
 		Open:  38497.42,
 		High:  39788.63,
 		Low:   38416.07,
@@ -534,7 +571,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/07/05",
+		Time:  strToTime("2024/07/05"),
 		Open:  39839.82,
 		High:  41100.13,
 		Low:   39457.62,
@@ -542,7 +579,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/07/12",
+		Time:  strToTime("2024/07/12"),
 		Open:  40863.14,
 		High:  42426.77,
 		Low:   40780.70,
@@ -550,7 +587,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/07/19",
+		Time:  strToTime("2024/07/19"),
 		Open:  41366.79,
 		High:  41520.07,
 		Low:   39824.58,
@@ -558,7 +595,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/07/26",
+		Time:  strToTime("2024/07/26"),
 		Open:  39947.95,
 		High:  39973.20,
 		Low:   37611.19,
@@ -566,7 +603,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/08/02",
+		Time:  strToTime("2024/08/02"),
 		Open:  38139.12,
 		High:  39188.37,
 		Low:   35880.15,
@@ -574,7 +611,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/08/09",
+		Time:  strToTime("2024/08/09"),
 		Open:  35249.36,
 		High:  35849.77,
 		Low:   31156.12,
@@ -582,7 +619,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/08/16",
+		Time:  strToTime("2024/08/16"),
 		Open:  35490.58,
 		High:  38143.55,
 		Low:   35476.79,
@@ -590,7 +627,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/08/23",
+		Time:  strToTime("2024/08/23"),
 		Open:  37863.76,
 		High:  38424.27,
 		Low:   37318.04,
@@ -598,7 +635,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/08/30",
+		Time:  strToTime("2024/08/30"),
 		Open:  38156.41,
 		High:  38669.79,
 		Low:   37825.31,
@@ -606,7 +643,7 @@ var TestDataNikkei225Week = []Candle{
 	},
 
 	{
-		Label: "2024/09/06",
+		Time:  strToTime("2024/09/06"),
 		Open:  39025.31,
 		High:  39080.64,
 		Low:   36235.61,
@@ -616,62 +653,62 @@ var TestDataNikkei225Week = []Candle{
 
 var TestDataNikkei225Week_Result_peaks = []ZigzagResult{
 	{
-		Info:        "2023/03/17",
+		Time:        strToTime("2023/03/17"),
 		PeakIndex:   0,
 		BottomIndex: 1,
 	},
 	{
-		Info:        "2023/06/23",
+		Time:        strToTime("2023/06/23"),
 		PeakIndex:   14,
 		BottomIndex: 18,
 	},
 	{
-		Info:        "2023/08/04",
+		Time:        strToTime("2023/08/04"),
 		PeakIndex:   20,
 		BottomIndex: 22,
 	},
 	{
-		Info:        "2023/09/15",
+		Time:        strToTime("2023/09/15"),
 		PeakIndex:   26,
 		BottomIndex: 29,
 	},
 	{
-		Info:        "2023/10/13",
+		Time:        strToTime("2023/10/13"),
 		PeakIndex:   30,
 		BottomIndex: 33,
 	},
 	{
-		Info:        "2023/12/01",
+		Time:        strToTime("2023/12/01"),
 		PeakIndex:   37,
 		BottomIndex: 38,
 	},
 	{
-		Info:        "2023/12/29",
+		Time:        strToTime("2023/12/29"),
 		PeakIndex:   41,
 		BottomIndex: 42,
 	},
 	{
-		Info:        "2024/03/08",
+		Time:        strToTime("2024/03/08"),
 		PeakIndex:   50,
 		BottomIndex: 51,
 	},
 	{
-		Info:        "2024/03/22",
+		Time:        strToTime("2024/03/22"),
 		PeakIndex:   52,
 		BottomIndex: 56,
 	},
 	{
-		Info:        "2024/05/17",
+		Time:        strToTime("2024/05/17"),
 		PeakIndex:   60,
 		BottomIndex: 62,
 	},
 	{
-		Info:        "2024/06/14",
+		Time:        strToTime("2024/06/14"),
 		PeakIndex:   64,
 		BottomIndex: 65,
 	},
 	{
-		Info:        "2024/07/19",
+		Time:        strToTime("2024/07/19"),
 		PeakIndex:   69,
 		BottomIndex: 72,
 	},
@@ -679,73 +716,73 @@ var TestDataNikkei225Week_Result_peaks = []ZigzagResult{
 
 var TestDataNikkei225Week_Result_bottoms = []ZigzagResult{
 	{
-		Info:        "2023/03/24",
+		Time:        strToTime("2023/03/24"),
 		PeakIndex:   14,
 		BottomIndex: 1,
 	},
 
 	{
-		Info:        "2023/07/21",
+		Time:        strToTime("2023/07/21"),
 		PeakIndex:   20,
 		BottomIndex: 18,
 	},
 
 	{
-		Info:        "2023/08/18",
+		Time:        strToTime("2023/08/18"),
 		PeakIndex:   26,
 		BottomIndex: 22,
 	},
 
 	{
-		Info:        "2023/10/06",
+		Time:        strToTime("2023/10/06"),
 		PeakIndex:   30,
 		BottomIndex: 29,
 	},
 
 	{
-		Info:        "2023/11/02",
+		Time:        strToTime("2023/11/02"),
 		PeakIndex:   37,
 		BottomIndex: 33,
 	},
 
 	{
-		Info:        "2023/12/08",
+		Time:        strToTime("2023/12/08"),
 		PeakIndex:   41,
 		BottomIndex: 38,
 	},
 
 	{
-		Info:        "2024/01/05",
+		Time:        strToTime("2024/01/05"),
 		PeakIndex:   50,
 		BottomIndex: 42,
 	},
 
 	{
-		Info:        "2024/03/15",
+		Time:        strToTime("2024/03/15"),
 		PeakIndex:   52,
 		BottomIndex: 51,
 	},
 
 	{
-		Info:        "2024/04/19",
+		Time:        strToTime("2024/04/19"),
 		PeakIndex:   60,
 		BottomIndex: 56,
 	},
 
 	{
-		Info:        "2024/05/31",
+		Time:        strToTime("2024/05/31"),
 		PeakIndex:   64,
 		BottomIndex: 62,
 	},
 
 	{
-		Info:        "2024/06/21",
+		Time:        strToTime("2024/06/21"),
 		PeakIndex:   69,
 		BottomIndex: 65,
 	},
 
 	{
-		Info:        "2024/08/09",
+		Time:        strToTime("2024/08/09"),
 		PeakIndex:   76,
 		BottomIndex: 72,
 	},
