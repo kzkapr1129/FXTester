@@ -72,21 +72,101 @@ components:
       required:
         - err
         - time
-    CreateFeaturePointsRequest:
+    File:
+      type: string
+      format: binary
+      description: ファイルのテキストまたはバイナリデータ
+    CsvInfo:
+      type: object
+      properties:
+        existsHeader:
+          type: boolean
+          description: csvにヘッダ行が存在するか
+        delimiterChar:
+          type: string
+          description: csvファイルの区切り文字
+          example: ","
+        timeColumnIndex:
+          type: integer
+          description: 時間カラムのインデックス番号(0始まり)
+          example: 0
+          minimum: 0
+        openColumnIndex:
+          type: integer
+          description: 始値カラムのインデックス番号(0始まり)
+          example: 1
+          minimum: 0
+        highColumnIndex:
+          type: integer
+          description: 高値カラムのインデックス番号(0始まり)
+          example: 2
+          minimum: 0
+        lowColumnIndex:
+          type: integer
+          description: 安値カラムのインデックス番号(0始まり)
+          example: 3
+          minimum: 0
+        closeColumnIndex:
+          type: integer
+          description: 終値カラムのインデックス番号(0始まり)
+          example: 4
+          minimum: 0
+      required:
+        - timeColumnIndex
+        - openColumnIndex
+        - highColumnIndex
+        - lowColumnIndex
+        - closeColumnIndex
+    Candle:
+      type: object
+      description: ローソク足
+      properties:
+        time:
+          type: string
+          example: 20141010T135040+0900
+          description: 日時
+        open:
+          type: number
+          format: float
+          example: 150.101
+          description: 始値
+        high:
+          type: number
+          format: float
+          example: 151.533
+          description: 高値
+        low:
+          type: number
+          format: float
+          example: 149.224
+          description: 安値
+        close:
+          type: number
+          format: float
+          example: 150.524
+          description: 終値
+    Candles:
+      type: array
+      description: ローソク足配列
+      items:
+        $ref: "#/components/schemas/Candle"
+    PostZigzagRequest:
       type: object
       properties:
         type:
           type: string
-          enum: [MT4_CSV]
-          description: ファイルタイプ
-        file:
-          type: string
-          format: binary
-          description: ファイルのテキストまたはバイナリデータ
+          enum: [csv, candles]
+          description: 入力データのタイプ
+          example: csv
+        csvInfo:
+          $ref: "#/components/schemas/CsvInfo"
+        csv:
+          $ref: "#/components/schemas/File"
+        candles:
+          $ref: "#/components/schemas/Candles"
       required:
         - type
-        - file
-    CreateFeaturePointsResult:
+    PostZigzagResult:
       type: object
       properties:
         uuid:
@@ -94,28 +174,21 @@ components:
           description: 進捗率を受け取るためのUUID
       required:
         - uuid
-    UploadProgressResult:
+    Progress:
       type: object
       properties:
-        rate:
+        progress:
           type: number
           format: float
-          description: 進捗率(進捗に応じて0.0から1.0に増加する)
-        isCompleted:
+          description: 進捗率[0.0~1.0]
+        complete:
           type: boolean
-          description: アップロードが完了したかのフラグ値
-      required:
-        - rate
-        - isCompleted
-
-security: # 全てのエンドポイントに対してbearerの指定を要求する
-  - bearerAuth: []
-
+          description: 作業完了フラグ
 paths:
   /saml/login:
     get:
       tags:
-        - Auth API
+        - 認証API
       summary: ユーザをシングルサインオンさせるログインリクエストを作成し、FormのPOSTによってidPに送信するスクリプトタグを含んだHTMLを返却するエンドポイント。
       security: []
       parameters:
@@ -154,7 +227,7 @@ paths:
   /saml/acs:
     post:
       tags:
-        - Auth API
+        - 認証API
       summary: IdPから受け取る認証レスポンス（SAMLアサーション）を処理するエンドポイント。
       security: []
       requestBody:
@@ -180,10 +253,9 @@ paths:
   /saml/logout:
     get:
       tags:
-        - Auth API
+        - 認証API
       summary: ユーザをログアウトさせるログアウトリクエストを作成し、FormのPOSTによってidPに送信するスクリプトタグを含んだHTMLを返却するエンドポイント。
-      security:
-        - cookieAuth: []
+      security: []
       parameters:
         - name: X-Redirect-URL
           in: header
@@ -220,10 +292,9 @@ paths:
   /saml/slo:
     post:
       tags:
-        - Auth API
+        - 認証API
       summary: IdPから受け取るログアウトリクエストを処理し、ユーザーをログアウトさせるエンドポイント。
-      security:
-        - cookieAuth: []
+      security: []
       requestBody:
         content:
           application/x-www-form-urlencoded:
@@ -256,7 +327,7 @@ paths:
   /saml/error:
     get:
       tags:
-        - Auth API
+        - 認証API
       summary: SAMLログインのエラー詳細を返却するエンドポイント
       security: []
       responses:
@@ -275,29 +346,129 @@ paths:
 
   /ws/:uuid:
     get:
-      summary: Websocketと接続します。
+      tags:
+        - Websocket
+      summary: Websocketと接続を行うためのエンドポイント。
       responses:
         '101':
           description: Websocketのハンドシェイクが正常に完了した場合
-
-  /feature_points:
+          # WebsocketのI/F仕様
+          x-websocket-I/F:
+            # FE→BE方向のデータフォーマット
+            send:
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    description: 送信は全て無視される
+                    properties:
+                      action:
+                        type: string
+                        description: アクション名
+                      payload:
+                        type: string
+                        description: ペイロード
+            # BE→FE方向のデータフォーマット
+            recv:
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    properties:
+                      action:
+                        type: string
+                        enum: [progress]
+                        description: アクション名
+                      payload:
+                        oneOf:
+                          - $ref: "#/components/schemas/Progress"
+        '204':
+          description: UUIDに関連する作業がすでに完了している場合
+        '400':
+          description: |
+            APIパラメータに不備があった場合
+            - 不正なUUIDが指定された場合 等
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: 権限エラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: |
+            処理続行に困難な問題が発生した場合
+            - サーバー負荷増大により処理を受け取れない
+            - バックエンドのシステムに致命的な確認された 等
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /zigzag:
+    get:
+      tags:
+        - ジグザグAPI
+      summary: Zigzagデータを返却するためのエンドポイント。
+      parameters:
+        - in: query
+          name: uuid
+          schema:
+            type: string
+          description: ZigzagデータのUUID
+      responses:
+        '200':
+          description: Zigzagデータが存在した場合
+        '400':
+          description: |
+            APIパラメータに不備があった場合
+            - 不正なUUIDが指定された場合 等
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: 権限エラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: 期限切れ等の理由でZigzagデータが存在しなかった場合
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: |
+            処理続行に困難な問題が発生した場合
+            - サーバー負荷増大により処理を受け取れない
+            - バックエンドのシステムに致命的な確認された 等
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     post:
-      summary: ローソク足のデータが格納されたファイル(MT4が出力したCSVなど)をアップロードし、特徴点の抽出を開始します。
+      tags:
+        - ジグザグAPI
+      summary: CSVまたはローソク足のデータをアップロードし、Zigzagのデータを作成するエンドポイント。
       requestBody:
         content:
           multipart/form-data:
             schema:
-              $ref: "#/components/schemas/CreateFeaturePointsRequest"
+              $ref: "#/components/schemas/PostZigzagRequest"
       responses:
         '202':
           description: 特徴点の抽出要求が受領された場合。
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CreateFeaturePointsResult"
+                $ref: "#/components/schemas/PostZigzagResult"
         '400':
           description: |
-            APIパラメータの不備があった場合
+            APIパラメータに不備があった場合
             - 予期しないパラメータの指定
             - ファイルデータの不備 等
           content:
@@ -319,33 +490,3 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-      x-websocket-messages:
-        send:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  action:
-                    type: string
-                    enum: [progress]
-                    description: リクエストのアクションタイプ
-                  payload:
-                    type: string
-                    description: 現在は使用用途無し
-        recv:
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  action:
-                    type: string
-                    enum: [progress]
-                    description: リクエストアクションに対しての応答アクション
-                  payload:
-                    type: object
-                    content:
-                      application/json:
-                        schema:
-                          - $ref: "#/components/schemas/UploadProgressResult"

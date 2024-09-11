@@ -1,15 +1,11 @@
 package service
 
 import (
-	"errors"
 	"fxtester/internal/db"
 	"fxtester/internal/gen"
-	"fxtester/internal/lang"
 	"fxtester/internal/saml"
 	"fxtester/internal/websock"
-	"mime/multipart"
 	"net/http"
-	"slices"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -88,32 +84,40 @@ func (b *BarService) GetWsUuid(ctx echo.Context) error {
 	return b.websockClient.CommunicateViaWs(ctx)
 }
 
-// ローソク足のデータが格納されたファイル(MT4が出力したCSVなど)をアップロードし、特徴点の抽出を開始します。
-// (POST /feature_points)
-func (b *BarService) PostFeaturePoints(ctx echo.Context) error {
-	err := ctx.Request().ParseMultipartForm(1 * 1024 * 1024)
-	if err != nil {
-		if errors.Is(err, multipart.ErrMessageTooLarge) {
-			return lang.NewFxtError(lang.ErrTooLargeFileError)
-		} else {
-			return lang.NewFxtError(lang.ErrParseMultipartForm).SetCause(err)
-		}
-	}
+// Zigzagデータを返却します
+//
+// (GET /zigzag)
+func (w *BarService) GetZigzag(ctx echo.Context, params gen.GetZigzagParams) error {
+	return nil
+}
 
-	fileTypes := ctx.Request().MultipartForm.Value["type"]
-	fileReaders := ctx.Request().MultipartForm.File["file"]
+// CSVまたはローソク足のデータをアップロードし、Zigzagのデータを作成します。
+//
+// (POST /zigzag)
+func (b *BarService) PostZigzag(ctx echo.Context) error {
+	// err := ctx.Request().ParseMultipartForm(1 * 1024 * 1024)
+	// if err != nil {
+	// 	if errors.Is(err, multipart.ErrMessageTooLarge) {
+	// 		return lang.NewFxtError(lang.ErrTooLargeFileError)
+	// 	} else {
+	// 		return lang.NewFxtError(lang.ErrParseMultipartForm).SetCause(err)
+	// 	}
+	// }
 
-	if len(fileTypes) <= 0 {
-		return lang.NewFxtError(lang.ErrCodeParameterMissing, "words.type")
-	}
+	// fileTypes := ctx.Request().MultipartForm.Value["type"]
+	// fileReaders := ctx.Request().MultipartForm.File["file"]
 
-	if len(fileReaders) <= 0 {
-		return lang.NewFxtError(lang.ErrCodeParameterMissing, "words.file")
-	}
+	// if len(fileTypes) <= 0 {
+	// 	return lang.NewFxtError(lang.ErrCodeParameterMissing, "words.type")
+	// }
 
-	if !slices.Contains([]string{string(gen.MT4CSV)}, fileTypes[0]) {
-		return lang.NewFxtError(lang.ErrInvalidParameterError, "words.type")
-	}
+	// if len(fileReaders) <= 0 {
+	// 	return lang.NewFxtError(lang.ErrCodeParameterMissing, "words.file")
+	// }
+
+	// if !slices.Contains([]string{string(gen.MT4CSV)}, fileTypes[0]) {
+	// 	return lang.NewFxtError(lang.ErrInvalidParameterError, "words.type")
+	// }
 
 	// f, err := fileReaders[0].Open()
 	// if err != nil {
@@ -137,7 +141,7 @@ func (b *BarService) PostFeaturePoints(ctx echo.Context) error {
 		// 処理結果をDB(またはfireStore)に格納して、wsの切断等に対処する
 	}()
 
-	return ctx.JSON(http.StatusAccepted, gen.CreateFeaturePointsResult{
+	return ctx.JSON(http.StatusAccepted, gen.PostZigzagResult{
 		Uuid: uuid,
 	})
 }

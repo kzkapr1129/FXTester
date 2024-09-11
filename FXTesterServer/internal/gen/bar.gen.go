@@ -22,32 +22,55 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for PostZigzagRequestType.
 const (
-	BearerAuthScopes = "bearerAuth.Scopes"
-	CookieAuthScopes = "cookieAuth.Scopes"
+	PostZigzagRequestTypeCandles PostZigzagRequestType = "candles"
+	PostZigzagRequestTypeCsv     PostZigzagRequestType = "csv"
 )
 
-// Defines values for CreateFeaturePointsRequestType.
-const (
-	MT4CSV CreateFeaturePointsRequestType = "MT4_CSV"
-)
+// Candle ローソク足
+type Candle struct {
+	// Close 終値
+	Close *float32 `json:"close,omitempty"`
 
-// CreateFeaturePointsRequest defines model for CreateFeaturePointsRequest.
-type CreateFeaturePointsRequest struct {
-	// File ファイルのテキストまたはバイナリデータ
-	File openapi_types.File `json:"file"`
+	// High 高値
+	High *float32 `json:"high,omitempty"`
 
-	// Type ファイルタイプ
-	Type CreateFeaturePointsRequestType `json:"type"`
+	// Low 安値
+	Low *float32 `json:"low,omitempty"`
+
+	// Open 始値
+	Open *float32 `json:"open,omitempty"`
+
+	// Time 日時
+	Time *string `json:"time,omitempty"`
 }
 
-// CreateFeaturePointsRequestType ファイルタイプ
-type CreateFeaturePointsRequestType string
+// Candles ローソク足配列
+type Candles = []Candle
 
-// CreateFeaturePointsResult defines model for CreateFeaturePointsResult.
-type CreateFeaturePointsResult struct {
-	// Uuid 進捗率を受け取るためのUUID
-	Uuid string `json:"uuid"`
+// CsvInfo defines model for CsvInfo.
+type CsvInfo struct {
+	// CloseColumnIndex 終値カラムのインデックス番号(0始まり)
+	CloseColumnIndex int `json:"closeColumnIndex"`
+
+	// DelimiterChar csvファイルの区切り文字
+	DelimiterChar *string `json:"delimiterChar,omitempty"`
+
+	// ExistsHeader csvにヘッダ行が存在するか
+	ExistsHeader *bool `json:"existsHeader,omitempty"`
+
+	// HighColumnIndex 高値カラムのインデックス番号(0始まり)
+	HighColumnIndex int `json:"highColumnIndex"`
+
+	// LowColumnIndex 安値カラムのインデックス番号(0始まり)
+	LowColumnIndex int `json:"lowColumnIndex"`
+
+	// OpenColumnIndex 始値カラムのインデックス番号(0始まり)
+	OpenColumnIndex int `json:"openColumnIndex"`
+
+	// TimeColumnIndex 時間カラムのインデックス番号(0始まり)
+	TimeColumnIndex int `json:"timeColumnIndex"`
 }
 
 // Error defines model for Error.
@@ -63,6 +86,31 @@ type Error struct {
 type ErrorWithTime struct {
 	Err  Error  `json:"err"`
 	Time string `json:"time"`
+}
+
+// File ファイルのテキストまたはバイナリデータ
+type File = openapi_types.File
+
+// PostZigzagRequest defines model for PostZigzagRequest.
+type PostZigzagRequest struct {
+	// Candles ローソク足配列
+	Candles *Candles `json:"candles,omitempty"`
+
+	// Csv ファイルのテキストまたはバイナリデータ
+	Csv     *File    `json:"csv,omitempty"`
+	CsvInfo *CsvInfo `json:"csvInfo,omitempty"`
+
+	// Type 入力データのタイプ
+	Type PostZigzagRequestType `json:"type"`
+}
+
+// PostZigzagRequestType 入力データのタイプ
+type PostZigzagRequestType string
+
+// PostZigzagResult defines model for PostZigzagResult.
+type PostZigzagResult struct {
+	// Uuid 進捗率を受け取るためのUUID
+	Uuid string `json:"uuid"`
 }
 
 // SAMLForm defines model for SAMLForm.
@@ -103,14 +151,20 @@ type PostSamlSloFormdataBody struct {
 	union json.RawMessage
 }
 
-// PostFeaturePointsMultipartRequestBody defines body for PostFeaturePoints for multipart/form-data ContentType.
-type PostFeaturePointsMultipartRequestBody = CreateFeaturePointsRequest
+// GetZigzagParams defines parameters for GetZigzag.
+type GetZigzagParams struct {
+	// Uuid ZigzagデータのUUID
+	Uuid *string `form:"uuid,omitempty" json:"uuid,omitempty"`
+}
 
 // PostSamlAcsFormdataRequestBody defines body for PostSamlAcs for application/x-www-form-urlencoded ContentType.
 type PostSamlAcsFormdataRequestBody = SAMLResponse
 
 // PostSamlSloFormdataRequestBody defines body for PostSamlSlo for application/x-www-form-urlencoded ContentType.
 type PostSamlSloFormdataRequestBody PostSamlSloFormdataBody
+
+// PostZigzagMultipartRequestBody defines body for PostZigzag for multipart/form-data ContentType.
+type PostZigzagMultipartRequestBody = PostZigzagRequest
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -185,9 +239,6 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// PostFeaturePointsWithBody request with any body
-	PostFeaturePointsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// PostSamlAcsWithBody request with any body
 	PostSamlAcsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -209,18 +260,12 @@ type ClientInterface interface {
 
 	// GetWsUuid request
 	GetWsUuid(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
-}
 
-func (c *Client) PostFeaturePointsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostFeaturePointsRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
+	// GetZigzag request
+	GetZigzag(ctx context.Context, params *GetZigzagParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostZigzagWithBody request with any body
+	PostZigzagWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) PostSamlAcsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -319,33 +364,28 @@ func (c *Client) GetWsUuid(ctx context.Context, reqEditors ...RequestEditorFn) (
 	return c.Client.Do(req)
 }
 
-// NewPostFeaturePointsRequestWithBody generates requests for PostFeaturePoints with any type of body
-func NewPostFeaturePointsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
+func (c *Client) GetZigzag(ctx context.Context, params *GetZigzagParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetZigzagRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
-
-	operationPath := fmt.Sprintf("/feature_points")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
 	}
+	return c.Client.Do(req)
+}
 
-	queryURL, err := serverURL.Parse(operationPath)
+func (c *Client) PostZigzagWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostZigzagRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
-
-	req, err := http.NewRequest("POST", queryURL.String(), body)
-	if err != nil {
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	return req, nil
+	return c.Client.Do(req)
 }
 
 // NewPostSamlAcsRequestWithFormdataBody calls the generic PostSamlAcs builder with application/x-www-form-urlencoded body
@@ -580,6 +620,84 @@ func NewGetWsUuidRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewGetZigzagRequest generates requests for GetZigzag
+func NewGetZigzagRequest(server string, params *GetZigzagParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/zigzag")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Uuid != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "uuid", runtime.ParamLocationQuery, *params.Uuid); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostZigzagRequestWithBody generates requests for PostZigzag with any type of body
+func NewPostZigzagRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/zigzag")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -623,9 +741,6 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// PostFeaturePointsWithBodyWithResponse request with any body
-	PostFeaturePointsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostFeaturePointsResponse, error)
-
 	// PostSamlAcsWithBodyWithResponse request with any body
 	PostSamlAcsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostSamlAcsResponse, error)
 
@@ -647,31 +762,12 @@ type ClientWithResponsesInterface interface {
 
 	// GetWsUuidWithResponse request
 	GetWsUuidWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetWsUuidResponse, error)
-}
 
-type PostFeaturePointsResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON202      *CreateFeaturePointsResult
-	JSON400      *Error
-	JSON401      *Error
-	JSON500      *Error
-}
+	// GetZigzagWithResponse request
+	GetZigzagWithResponse(ctx context.Context, params *GetZigzagParams, reqEditors ...RequestEditorFn) (*GetZigzagResponse, error)
 
-// Status returns HTTPResponse.Status
-func (r PostFeaturePointsResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r PostFeaturePointsResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
+	// PostZigzagWithBodyWithResponse request with any body
+	PostZigzagWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostZigzagResponse, error)
 }
 
 type PostSamlAcsResponse struct {
@@ -786,6 +882,9 @@ func (r PostSamlSloResponse) StatusCode() int {
 type GetWsUuidResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON400      *Error
+	JSON401      *Error
+	JSON500      *Error
 }
 
 // Status returns HTTPResponse.Status
@@ -804,13 +903,54 @@ func (r GetWsUuidResponse) StatusCode() int {
 	return 0
 }
 
-// PostFeaturePointsWithBodyWithResponse request with arbitrary body returning *PostFeaturePointsResponse
-func (c *ClientWithResponses) PostFeaturePointsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostFeaturePointsResponse, error) {
-	rsp, err := c.PostFeaturePointsWithBody(ctx, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
+type GetZigzagResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *Error
+	JSON401      *Error
+	JSON404      *Error
+	JSON500      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r GetZigzagResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
 	}
-	return ParsePostFeaturePointsResponse(rsp)
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetZigzagResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostZigzagResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON202      *PostZigzagResult
+	JSON400      *Error
+	JSON401      *Error
+	JSON500      *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r PostZigzagResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostZigzagResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 // PostSamlAcsWithBodyWithResponse request with arbitrary body returning *PostSamlAcsResponse
@@ -883,51 +1023,22 @@ func (c *ClientWithResponses) GetWsUuidWithResponse(ctx context.Context, reqEdit
 	return ParseGetWsUuidResponse(rsp)
 }
 
-// ParsePostFeaturePointsResponse parses an HTTP response from a PostFeaturePointsWithResponse call
-func ParsePostFeaturePointsResponse(rsp *http.Response) (*PostFeaturePointsResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
+// GetZigzagWithResponse request returning *GetZigzagResponse
+func (c *ClientWithResponses) GetZigzagWithResponse(ctx context.Context, params *GetZigzagParams, reqEditors ...RequestEditorFn) (*GetZigzagResponse, error) {
+	rsp, err := c.GetZigzag(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
+	return ParseGetZigzagResponse(rsp)
+}
 
-	response := &PostFeaturePointsResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
+// PostZigzagWithBodyWithResponse request with arbitrary body returning *PostZigzagResponse
+func (c *ClientWithResponses) PostZigzagWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostZigzagResponse, error) {
+	rsp, err := c.PostZigzagWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
 	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
-		var dest CreateFeaturePointsResult
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON202 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	}
-
-	return response, nil
+	return ParsePostZigzagResponse(rsp)
 }
 
 // ParsePostSamlAcsResponse parses an HTTP response from a PostSamlAcsWithResponse call
@@ -1060,14 +1171,129 @@ func ParseGetWsUuidResponse(rsp *http.Response) (*GetWsUuidResponse, error) {
 		HTTPResponse: rsp,
 	}
 
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetZigzagResponse parses an HTTP response from a GetZigzagWithResponse call
+func ParseGetZigzagResponse(rsp *http.Response) (*GetZigzagResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetZigzagResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostZigzagResponse parses an HTTP response from a PostZigzagWithResponse call
+func ParsePostZigzagResponse(rsp *http.Response) (*PostZigzagResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostZigzagResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest PostZigzagResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
 	return response, nil
 }
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// ローソク足のデータが格納されたファイル(MT4が出力したCSVなど)をアップロードし、特徴点の抽出を開始します。
-	// (POST /feature_points)
-	PostFeaturePoints(ctx echo.Context) error
 	// IdPから受け取る認証レスポンス（SAMLアサーション）を処理するエンドポイント。
 	// (POST /saml/acs)
 	PostSamlAcs(ctx echo.Context) error
@@ -1083,25 +1309,20 @@ type ServerInterface interface {
 	// IdPから受け取るログアウトリクエストを処理し、ユーザーをログアウトさせるエンドポイント。
 	// (POST /saml/slo)
 	PostSamlSlo(ctx echo.Context) error
-	// Websocketと接続します。
+	// Websocketと接続を行うためのエンドポイント。
 	// (GET /ws/:uuid)
 	GetWsUuid(ctx echo.Context) error
+	// Zigzagデータを返却するためのエンドポイント。
+	// (GET /zigzag)
+	GetZigzag(ctx echo.Context, params GetZigzagParams) error
+	// CSVまたはローソク足のデータをアップロードし、Zigzagのデータを作成するエンドポイント。
+	// (POST /zigzag)
+	PostZigzag(ctx echo.Context) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
-}
-
-// PostFeaturePoints converts echo context to params.
-func (w *ServerInterfaceWrapper) PostFeaturePoints(ctx echo.Context) error {
-	var err error
-
-	ctx.Set(BearerAuthScopes, []string{})
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.PostFeaturePoints(ctx)
-	return err
 }
 
 // PostSamlAcs converts echo context to params.
@@ -1174,8 +1395,6 @@ func (w *ServerInterfaceWrapper) GetSamlLogin(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) GetSamlLogout(ctx echo.Context) error {
 	var err error
 
-	ctx.Set(CookieAuthScopes, []string{})
-
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetSamlLogoutParams
 
@@ -1224,8 +1443,6 @@ func (w *ServerInterfaceWrapper) GetSamlLogout(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) PostSamlSlo(ctx echo.Context) error {
 	var err error
 
-	ctx.Set(CookieAuthScopes, []string{})
-
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.PostSamlSlo(ctx)
 	return err
@@ -1235,10 +1452,35 @@ func (w *ServerInterfaceWrapper) PostSamlSlo(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) GetWsUuid(ctx echo.Context) error {
 	var err error
 
-	ctx.Set(BearerAuthScopes, []string{})
-
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.GetWsUuid(ctx)
+	return err
+}
+
+// GetZigzag converts echo context to params.
+func (w *ServerInterfaceWrapper) GetZigzag(ctx echo.Context) error {
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetZigzagParams
+	// ------------- Optional query parameter "uuid" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "uuid", ctx.QueryParams(), &params.Uuid)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter uuid: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetZigzag(ctx, params)
+	return err
+}
+
+// PostZigzag converts echo context to params.
+func (w *ServerInterfaceWrapper) PostZigzag(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PostZigzag(ctx)
 	return err
 }
 
@@ -1270,60 +1512,70 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.POST(baseURL+"/feature_points", wrapper.PostFeaturePoints)
 	router.POST(baseURL+"/saml/acs", wrapper.PostSamlAcs)
 	router.GET(baseURL+"/saml/error", wrapper.GetSamlError)
 	router.GET(baseURL+"/saml/login", wrapper.GetSamlLogin)
 	router.GET(baseURL+"/saml/logout", wrapper.GetSamlLogout)
 	router.POST(baseURL+"/saml/slo", wrapper.PostSamlSlo)
 	router.GET(baseURL+"/ws/:uuid", wrapper.GetWsUuid)
+	router.GET(baseURL+"/zigzag", wrapper.GetZigzag)
+	router.POST(baseURL+"/zigzag", wrapper.PostZigzag)
 
 }
 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
+	"AP//ZLLxAwQwAAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
