@@ -1,6 +1,7 @@
 package algo
 
 import (
+	"fxtester/internal/common"
 	"slices"
 	"strings"
 	"testing"
@@ -8,7 +9,7 @@ import (
 
 func Test_FindZigzagPeak(t *testing.T) {
 	type args struct {
-		input []Candle
+		input []common.Candle
 	}
 
 	tests := []struct {
@@ -87,7 +88,7 @@ func Test_FindZigzagPeak(t *testing.T) {
 
 func Test_FindZigzagBottom(t *testing.T) {
 	type args struct {
-		input []Candle
+		input []common.Candle
 	}
 
 	tests := []struct {

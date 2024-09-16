@@ -2,17 +2,9 @@ package algo
 
 import (
 	"errors"
-	"math"
+	"fxtester/internal/common"
 	"time"
 )
-
-type Candle struct {
-	Time  time.Time
-	High  float64
-	Open  float64
-	Close float64
-	Low   float64
-}
 
 type Kind int
 
@@ -30,35 +22,7 @@ type ZigzagResult struct {
 	Kind        Kind
 }
 
-func (c *Candle) BoxMax() float64 {
-	return math.Max(c.Open, c.Close)
-}
-
-func (c *Candle) BoxMin() float64 {
-	return math.Min(c.Open, c.Close)
-}
-
-func (c *Candle) Contains(t *Candle) bool {
-	return c.BoxMin() <= t.BoxMin() && t.BoxMax() <= c.BoxMax()
-}
-
-func (c *Candle) isUpdatedBoxMaxBy(t *Candle) bool {
-	return c.BoxMax() < t.BoxMax()
-}
-
-func (c *Candle) isUpdatedBoxMinBy(t *Candle) bool {
-	return t.BoxMin() < c.BoxMin()
-}
-
-func (c *Candle) isPositive() bool {
-	return c.Open < c.Close
-}
-
-func (c *Candle) isNegative() bool {
-	return c.Close < c.Open
-}
-
-func FindZigzagPeakToBottom(candles []Candle) []ZigzagResult {
+func FindZigzagPeakToBottom(candles []common.Candle) []ZigzagResult {
 	results := make([]ZigzagResult, 0)
 
 	for i := 0; i < len(candles); i++ {
@@ -105,23 +69,10 @@ func FindZigzagPeakToBottom(candles []Candle) []ZigzagResult {
 		i = bottomIndex
 	}
 
-	// slices.SortFunc(results, func(i, j ZigzagResult) int {
-	// 	if i.Velocity == j.Velocity {
-	// 		return 0
-	// 	}
-	// 	return func() int {
-	// 		if i.Velocity > j.Velocity {
-	// 			return -1
-	// 		} else {
-	// 			return 1
-	// 		}
-	// 	}()
-	// })
-
 	return results
 }
 
-func FindZigzagBottomToPeak(candles []Candle) []ZigzagResult {
+func FindZigzagBottomToPeak(candles []common.Candle) []ZigzagResult {
 	results := make([]ZigzagResult, 0)
 
 	for i := 0; i < len(candles); i++ {
@@ -167,26 +118,13 @@ func FindZigzagBottomToPeak(candles []Candle) []ZigzagResult {
 		i = peakIndex
 	}
 
-	// slices.SortFunc(results, func(i, j ZigzagResult) int {
-	// 	if i.Velocity == j.Velocity {
-	// 		return 0
-	// 	}
-	// 	return func() int {
-	// 		if i.Velocity > j.Velocity {
-	// 			return -1
-	// 		} else {
-	// 			return 1
-	// 		}
-	// 	}()
-	// })
-
 	return results
 }
 
 /*
  * findPeak 最も高値更新したローソク足を探す。ネックライン割れ、安値更新が起きた場合は高値更新は終了したと判断する。
  */
-func findPeak(candles []Candle, start int) (int, int, *Candle, error) {
+func findPeak(candles []common.Candle, start int) (int, int, *common.Candle, error) {
 	if len(candles) <= start {
 		return 0, 0, nil, errors.New("overflow")
 	}
@@ -204,7 +142,7 @@ func findPeak(candles []Candle, start int) (int, int, *Candle, error) {
 		lastIndex = i // 処理済みのインデックスを保持しておく
 
 		c := candles[i]
-		if peak.isUpdatedBoxMaxBy(&c) {
+		if peak.IsUpdatedBoxMaxBy(&c) {
 			// 高値更新があった場合
 			peak = c
 			peakIndex = i
@@ -216,18 +154,18 @@ func findPeak(candles []Candle, start int) (int, int, *Candle, error) {
 		if prev.Contains(&c) {
 			// 前回のローソク足に包含されている場合
 			continue
-		} else if prev.isUpdatedBoxMaxBy(&c) && !prev.isUpdatedBoxMinBy(&c) {
+		} else if prev.IsUpdatedBoxMaxBy(&c) && !prev.IsUpdatedBoxMinBy(&c) {
 			// 前回のローソク足の高値を更新した場合 (peakの更新はなし、安値の更新はなし)
 			continue
-		} else if prev.isUpdatedBoxMinBy(&c) {
+		} else if prev.IsUpdatedBoxMinBy(&c) {
 			// 前回のローソク足の安値を更新した場合
-			if prev.isUpdatedBoxMaxBy(&c) {
+			if prev.IsUpdatedBoxMaxBy(&c) {
 				// 安値と高値(peakの更新はなし)両方更新した場合
 
-				if c.isPositive() {
+				if c.IsPositive() {
 					// ローソク足が陽線の場合
 					continue // 高値更新を優先する (処理継続)
-				} else if c.isNegative() {
+				} else if c.IsNegative() {
 					// ローソク足が陰線の場合
 					break // 安値更新を優先する (処理終了)
 				} else {
@@ -252,7 +190,7 @@ func findPeak(candles []Candle, start int) (int, int, *Candle, error) {
 /*
  * findPeak 最も安値更新したローソク足を探す。ネックライン割れ、高値更新が起きた場合は高値更新は終了したと判断する。
  */
-func findBottom(candles []Candle, start int) (int, int, *Candle, error) {
+func findBottom(candles []common.Candle, start int) (int, int, *common.Candle, error) {
 	if len(candles) <= start {
 		return 0, 0, nil, errors.New("overflow")
 	}
@@ -270,7 +208,7 @@ func findBottom(candles []Candle, start int) (int, int, *Candle, error) {
 		lastIndex = i // 処理済みのインデックスを保持しておく
 
 		c := candles[i]
-		if bottom.isUpdatedBoxMinBy(&c) {
+		if bottom.IsUpdatedBoxMinBy(&c) {
 			// 安値更新があった場合
 			bottom = c
 			bottomIndex = i
@@ -282,18 +220,18 @@ func findBottom(candles []Candle, start int) (int, int, *Candle, error) {
 		if prev.Contains(&c) {
 			// 前回のローソク足に包含されている場合
 			continue
-		} else if prev.isUpdatedBoxMinBy(&c) && !prev.isUpdatedBoxMaxBy(&c) {
+		} else if prev.IsUpdatedBoxMinBy(&c) && !prev.IsUpdatedBoxMaxBy(&c) {
 			// 前回のローソク足の安値を更新した場合 (bottomの更新はなし、高値の更新はなし)
 			continue
-		} else if prev.isUpdatedBoxMaxBy(&c) {
+		} else if prev.IsUpdatedBoxMaxBy(&c) {
 			// 前回のローソク足の高値を更新した場合
-			if prev.isUpdatedBoxMinBy(&c) {
+			if prev.IsUpdatedBoxMinBy(&c) {
 				// 高値と安値(bottomの更新はなし)両方更新した場合
 
-				if c.isNegative() {
+				if c.IsNegative() {
 					// ローソク足が陰線の場合
 					continue // 安値更新を優先する (処理継続)
-				} else if c.isPositive() {
+				} else if c.IsPositive() {
 					// ローソク足が陽線の場合
 					break // 高値更新を優先する (処理終了)
 				} else {

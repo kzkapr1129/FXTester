@@ -12,7 +12,7 @@ import (
 )
 
 type BarService struct {
-	samlClient *saml.SamlClient
+	samlClient saml.ISamlClient
 	dbWrapper  db.IDbWrapper
 
 	websockClient *websock.WebsockClient

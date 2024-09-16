@@ -48,6 +48,16 @@ func (c *SamlClientReader) FetchMetadata(ctx context.Context, url url.URL, timeo
 	return cssp.FetchMetadata(ctx, http.DefaultClient, url)
 }
 
+type ISamlClient interface {
+	Init() error
+	FetchIdpMetadata() (*cs.EntityDescriptor, error)
+	ExecuteSamlLogin(ctx echo.Context, params gen.GetSamlLoginParams) error
+	ExecuteSamlAcs(ctx echo.Context) error
+	ExecuteSamlLogout(ctx echo.Context, params gen.GetSamlLogoutParams) error
+	ExecuteSamlSlo(ctx echo.Context) error
+	ExecuteSamlError(ctx echo.Context) error
+}
+
 type SamlClient struct {
 	reader ISamlClientReader
 	sp     cs.ServiceProvider
@@ -55,7 +65,7 @@ type SamlClient struct {
 }
 
 // NewSamlClient SAMLクライアントを生成します
-func NewSamlClient(reader ISamlClientReader, dbProvider db.IDbWrapper) *SamlClient {
+func NewSamlClient(reader ISamlClientReader, dbProvider db.IDbWrapper) ISamlClient {
 	return &SamlClient{
 		reader: reader,
 		dao:    db.NewUserEntityDao(dbProvider),

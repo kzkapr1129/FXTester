@@ -2,6 +2,7 @@ package algo
 
 import (
 	"fmt"
+	"fxtester/internal/common"
 	"regexp"
 	"strconv"
 	"time"
@@ -38,7 +39,7 @@ var strToTime func(v string) time.Time = func() func(v string) time.Time {
 }()
 
 // 日経225 (週足): 2023/3/17〜2024/4/19
-var TestDataNikkei225Week = []Candle{
+var TestDataNikkei225Week = []common.Candle{
 	{
 		Time:  strToTime("2023/03/17"),
 		Open:  27886.21,
