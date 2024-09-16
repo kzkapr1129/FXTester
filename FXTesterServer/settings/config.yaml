@@ -5,6 +5,8 @@ server:
   allowOrigins:
     - https://fx-tester-fe:3000
     - https://localhost:3000
+    - https://localhost:18512 # for swagger-UI
+    - http://localhost:18512  # for swagger-UI
   ssl:
     isEnabled: true
     certPath: "{{ .pwd }}/settings/cert/fx-tester.cert.pem"
