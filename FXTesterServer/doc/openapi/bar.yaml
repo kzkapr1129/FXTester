@@ -82,10 +82,14 @@ components:
         existsHeader:
           type: boolean
           description: csvにヘッダ行が存在するか
+          example: false
         delimiterChar:
           type: string
           description: csvファイルの区切り文字
           example: ","
+          minLength: 1
+          maxLength: 1
+          format: '^[,\t\s]$'
         timeColumnIndex:
           type: integer
           description: 時間カラムのインデックス番号(0始まり)
@@ -112,6 +116,8 @@ components:
           example: 4
           minimum: 0
       required:
+        - existsHeader
+        - delimiterChar
         - timeColumnIndex
         - openColumnIndex
         - highColumnIndex
@@ -123,28 +129,39 @@ components:
       properties:
         time:
           type: string
-          example: 20141010T135040+0900
+          example: '2014-10-10T13:50:40.567+09:00'
           description: 日時
+          format: '^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1-2][0-9]|3[0-1])T(?:[0-1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\.[0-9]+)?(?:Z|[+-](?:[0-1][0-9]|2[0-3]):[0-5][0-9])$'
         open:
           type: number
           format: float
           example: 150.101
           description: 始値
+          minimum: 0.0
         high:
           type: number
           format: float
           example: 151.533
           description: 高値
+          minimum: 0.0
         low:
           type: number
           format: float
           example: 149.224
           description: 安値
+          minimum: 0.0
         close:
           type: number
           format: float
           example: 150.524
           description: 終値
+          minimum: 0.0
+      required:
+        - time
+        - open
+        - high
+        - low
+        - close
     Candles:
       type: array
       description: ローソク足配列

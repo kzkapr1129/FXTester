@@ -39,6 +39,13 @@ dict:
       en: |
         %sに不正なパラメータが指定されたました
         (エラーコード: 0x%x)
+    InvalidRequestProtocolError:
+      ja: |
+        リクエストの形式に不備がありました。
+        (エラーコード: 0x%x)
+      en: |
+        リクエストの形式に不備がありました。
+        (エラーコード: 0x%x)
     TooLargeMessageError:
       ja: |
         リクエストパラメータのサイズ上限を超えました。

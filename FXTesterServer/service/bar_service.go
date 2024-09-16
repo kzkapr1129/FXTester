@@ -1,12 +1,15 @@
 package service
 
 import (
+	"errors"
 	"fxtester/internal/db"
 	"fxtester/internal/gen"
+	"fxtester/internal/lang"
 	"fxtester/internal/saml"
+	"fxtester/internal/validator"
 	"fxtester/internal/websock"
+	"mime/multipart"
 	"net/http"
-	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -95,17 +98,21 @@ func (w *BarService) GetZigzag(ctx echo.Context, params gen.GetZigzagParams) err
 //
 // (POST /zigzag)
 func (b *BarService) PostZigzag(ctx echo.Context) error {
-	// err := ctx.Request().ParseMultipartForm(1 * 1024 * 1024)
-	// if err != nil {
-	// 	if errors.Is(err, multipart.ErrMessageTooLarge) {
-	// 		return lang.NewFxtError(lang.ErrTooLargeFileError)
-	// 	} else {
-	// 		return lang.NewFxtError(lang.ErrParseMultipartForm).SetCause(err)
-	// 	}
-	// }
+	err := ctx.Request().ParseMultipartForm(1 * 1024 * 1024)
+	if err != nil {
+		if errors.Is(err, multipart.ErrMessageTooLarge) {
+			return lang.NewFxtError(lang.ErrTooLargeMessageError)
+		} else {
+			return lang.NewFxtError(lang.ErrInvalidRequestProtocol).SetCause(err)
+		}
+	}
 
-	// fileTypes := ctx.Request().MultipartForm.Value["type"]
-	// fileReaders := ctx.Request().MultipartForm.File["file"]
+	// リクエストパラメータのバリデーション
+	if err := validator.ValidatePostZigzag(ctx); err != nil {
+		return err
+	}
+
+	//
 
 	// if len(fileTypes) <= 0 {
 	// 	return lang.NewFxtError(lang.ErrCodeParameterMissing, "words.type")
@@ -124,24 +131,7 @@ func (b *BarService) PostZigzag(ctx echo.Context) error {
 	// 	return lang.NewFxtError(lang.ErrInvalidParameterError, "words.file")
 	// }
 
-	writer, closer, uuid, err := b.websockClient.NewWs()
-	if err != nil {
-		return err
-	}
-
-	go func() {
-		defer closer()
-
-		const max = 100
-		for i := 0; i < max; i++ {
-			writer("progress", float32(i)/max)
-			time.Sleep(100 * time.Millisecond)
-		}
-
-		// 処理結果をDB(またはfireStore)に格納して、wsの切断等に対処する
-	}()
-
 	return ctx.JSON(http.StatusAccepted, gen.PostZigzagResult{
-		Uuid: uuid,
+		Uuid: "test",
 	})
 }
