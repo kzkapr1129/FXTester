@@ -72,7 +72,7 @@ const (
 	ErrCodeForbiddenCharacterError ErrorCode = 0x81010001 // 禁止文字エラー
 	ErrCodeParameterMissing        ErrorCode = 0x81010002 // 必須パラメータの未指定
 	ErrInvalidParameterError       ErrorCode = 0x81010003 // パラメータに予期しない値が設定された場合のエラー
-	ErrTooLargeFileError           ErrorCode = 0x81010004 // アップロードされたファイルのサイズが上限に達した場合のエラー
+	ErrTooLargeMessageError        ErrorCode = 0x81010004 // multipart/formで巨大なサイズのデータがアップロードされた場合のエラー
 )
 
 type ErrorTypeDetail struct {
@@ -108,9 +108,9 @@ var errorTypeDetails = []ErrorTypeDetail{
 		displayErrorCode: true,
 	},
 	{
-		errorCodePattern: regexp.MustCompile(fmt.Sprintf("0x%x", ErrTooLargeFileError)),
+		errorCodePattern: regexp.MustCompile(fmt.Sprintf("0x%x", ErrTooLargeMessageError)),
 		statusCode:       http.StatusBadRequest,
-		dictKey:          "TooLargeFileError",
+		dictKey:          "TooLargeMessageError",
 		displayErrorCode: true,
 	},
 }

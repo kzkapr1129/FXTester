@@ -39,7 +39,7 @@ dict:
       en: |
         %sに不正なパラメータが指定されたました
         (エラーコード: 0x%x)
-    TooLargeFileError:
+    TooLargeMessageError:
       ja: |
         リクエストパラメータのサイズ上限を超えました。
         (エラーコード: 0x%x)
