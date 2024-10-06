@@ -277,7 +277,74 @@ func Test_SamlClient_Init(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "test8_error",
+			name: "test8_download_normal",
+			args: args{
+				samlClient: func() ISamlClient {
+					r := &MockSamlClientReader{
+						delegateOpenFile: func(path string) (io.ReadCloser, error) {
+							return nil, nil
+						},
+						delegateFetchMetadata: func() func(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
+							count := 0
+
+							return func(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
+								defer func() {
+									count++
+								}()
+								if count == 0 {
+									// 初回は必ず失敗する
+									return nil, errors.New("test-error")
+								}
+								// 二回目以降
+								descriptor, err := cssp.ParseMetadata([]byte(TestDataIdpMetadata))
+								if err != nil {
+									t.Errorf("failed ParseMetadata: %v", err)
+								}
+								return descriptor, nil
+							}
+						}(),
+					}
+					db, _, err := sqlmock.New()
+					if err != nil {
+						t.Errorf("failed sqlmock.New(): %v", err)
+					}
+					idb := &MockDB{
+						db: db,
+					}
+					return NewSamlClient(r, idb)
+				}(),
+				idpMetadataUrl: "https://test",
+				backendURL:     common.GetConfig().Saml.BackendURL,
+			},
+		},
+		{
+			name: "test9_download_error",
+			args: args{
+				samlClient: func() ISamlClient {
+					r := &MockSamlClientReader{
+						delegateOpenFile: func(path string) (io.ReadCloser, error) {
+							return nil, nil
+						},
+						delegateFetchMetadata: func(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
+							return nil, errors.New("test-error") // 必ずエラー
+						},
+					}
+					db, _, err := sqlmock.New()
+					if err != nil {
+						t.Errorf("failed sqlmock.New(): %v", err)
+					}
+					idb := &MockDB{
+						db: db,
+					}
+					return NewSamlClient(r, idb)
+				}(),
+				idpMetadataUrl: "https://test",
+				backendURL:     common.GetConfig().Saml.BackendURL,
+			},
+			wantErr: true,
+		},
+		{
+			name: "test10_error",
 			args: args{
 				samlClient: func() ISamlClient {
 					r := &MockSamlClientReader{

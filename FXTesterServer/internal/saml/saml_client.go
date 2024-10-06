@@ -532,7 +532,8 @@ func (c *SamlClient) fetchIdpMetadataFromNetwork(idpMetadataUrl string) (*cs.Ent
 
 	var lastError error = nil
 	baseCtx := context.Background()
-	for retry := 1; retry <= 2; retry++ {
+	const maxRetry = 2
+	for retry := 1; retry <= maxRetry; retry++ {
 		timeout := time.Duration(5*retry) * time.Second
 		d, err := c.reader.FetchMetadata(baseCtx, *u, timeout)
 		if err == nil {
@@ -540,7 +541,10 @@ func (c *SamlClient) fetchIdpMetadataFromNetwork(idpMetadataUrl string) (*cs.Ent
 			break
 		}
 		lastError = err
-		time.Sleep(timeout)
+
+		if maxRetry < retry+1 {
+			break
+		}
 	}
 	if descriptor == nil {
 		return nil, lang.NewFxtError(lang.ErrDownloadIdpMetadata).SetCause(lastError)
