@@ -31,21 +31,25 @@ const SAMLResponse = "SAMLResponse"
 
 const URLParamSamlError = "saml_error"
 
-type ISamlClientReader interface {
+type IDelegator interface {
 	OpenFile(path string) (io.ReadCloser, error)
 	FetchMetadata(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error)
+	ParseAuthResponse(sp cs.ServiceProvider, request *http.Request, possibleRequestIds []string) (*cs.Assertion, error)
 }
 
-type SamlClientReader struct {
+type Delegator struct {
 }
 
-func (c *SamlClientReader) OpenFile(path string) (io.ReadCloser, error) {
+func (c *Delegator) OpenFile(path string) (io.ReadCloser, error) {
 	return os.Open(path)
 }
-func (c *SamlClientReader) FetchMetadata(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
+func (c *Delegator) FetchMetadata(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return cssp.FetchMetadata(ctx, http.DefaultClient, url)
+}
+func (c *Delegator) ParseAuthResponse(sp cs.ServiceProvider, request *http.Request, possibleRequestIds []string) (*cs.Assertion, error) {
+	return sp.ParseResponse(request, possibleRequestIds)
 }
 
 type ISamlClient interface {
@@ -59,16 +63,16 @@ type ISamlClient interface {
 }
 
 type SamlClient struct {
-	reader ISamlClientReader
-	sp     cs.ServiceProvider
-	dao    db.IUserEntityDao
+	delegate IDelegator
+	sp       cs.ServiceProvider
+	dao      db.IUserEntityDao
 }
 
 // NewSamlClient SAMLクライアントを生成します
-func NewSamlClient(reader ISamlClientReader, idb db.IDB) ISamlClient {
+func NewSamlClient(delegate IDelegator, idb db.IDB) ISamlClient {
 	return &SamlClient{
-		reader: reader,
-		dao:    db.NewUserEntityDao(idb),
+		delegate: delegate,
+		dao:      db.NewUserEntityDao(idb),
 	}
 }
 
@@ -178,7 +182,7 @@ func (s *SamlClient) ExecuteSamlAcs(ctx echo.Context) (lastError error) {
 
 	// SAMLResponseを解析する
 	possibleRequestIds := []string{session.AuthnRequestId}
-	assertion, err := s.sp.ParseResponse(ctx.Request(), possibleRequestIds)
+	assertion, err := s.delegate.ParseAuthResponse(s.sp, ctx.Request(), possibleRequestIds)
 	if err != nil {
 		// SAMLResponseの解析に失敗した場合 (metadata.xmlとの鍵の不一致等)
 		return lang.NewFxtError(lang.ErrCodeSSOParseResponse).SetCause(err)
@@ -501,7 +505,7 @@ func (c *SamlClient) FetchIdpMetadata() (*cs.EntityDescriptor, error) {
 func (c *SamlClient) fetchIdpMetadataFromFile(idpMetadataUrl string) (*cs.EntityDescriptor, error) {
 	// スキーム(file://)を削除してファイルパスを抽出する
 	path := strings.TrimPrefix(idpMetadataUrl, SchemeFile)
-	f, err := c.reader.OpenFile(path)
+	f, err := c.delegate.OpenFile(path)
 	if err != nil {
 		return nil, lang.NewFxtError(lang.ErrCodeDisk).SetCause(err)
 	}
@@ -534,7 +538,7 @@ func (c *SamlClient) fetchIdpMetadataFromNetwork(idpMetadataUrl string) (*cs.Ent
 	baseCtx := context.Background()
 	for retry := 1; retry <= 2; retry++ {
 		timeout := time.Duration(5*retry) * time.Second
-		d, err := c.reader.FetchMetadata(baseCtx, *u, timeout)
+		d, err := c.delegate.FetchMetadata(baseCtx, *u, timeout)
 		if err == nil {
 			descriptor = d
 			break

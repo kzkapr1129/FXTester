@@ -25,7 +25,7 @@ type TestSpService struct {
 }
 
 func NewTestSpService() *TestSpService {
-	samlClient := saml.NewSamlClient(&saml.SamlClientReader{}, nil)
+	samlClient := saml.NewSamlClient(&saml.Delegator{}, nil)
 	idpMetadata, err := samlClient.FetchIdpMetadata()
 	if err != nil {
 		panic(err)

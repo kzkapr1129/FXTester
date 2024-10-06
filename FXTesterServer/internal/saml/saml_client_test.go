@@ -22,16 +22,20 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type MockSamlClientReader struct {
-	delegateOpenFile      func(path string) (io.ReadCloser, error)
-	delegateFetchMetadata func(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error)
+type MockSamlClientDelegator struct {
+	delegateOpenFile          func(path string) (io.ReadCloser, error)
+	delegateFetchMetadata     func(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error)
+	delegateParseAuthResponse func(sp cs.ServiceProvider, request *http.Request, possibleRequestIds []string) (*cs.Assertion, error)
 }
 
-func (m *MockSamlClientReader) OpenFile(path string) (io.ReadCloser, error) {
+func (m *MockSamlClientDelegator) OpenFile(path string) (io.ReadCloser, error) {
 	return m.delegateOpenFile(path)
 }
-func (m *MockSamlClientReader) FetchMetadata(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
+func (m *MockSamlClientDelegator) FetchMetadata(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
 	return m.delegateFetchMetadata(ctx, url, timeout)
+}
+func (m *MockSamlClientDelegator) ParseAuthResponse(sp cs.ServiceProvider, request *http.Request, possibleRequestIds []string) (*cs.Assertion, error) {
+	return m.delegateParseAuthResponse(sp, request, possibleRequestIds)
 }
 
 type MockDB struct {
@@ -74,7 +78,7 @@ func Test_SamlClient_Init(t *testing.T) {
 			name: "test1_file_normal",
 			args: args{
 				samlClient: func() ISamlClient {
-					r := &MockSamlClientReader{
+					r := &MockSamlClientDelegator{
 						delegateOpenFile: func(path string) (io.ReadCloser, error) {
 							r := strings.NewReader(TestDataIdpMetadata)
 							return &MockReaderCloser{
@@ -104,7 +108,7 @@ func Test_SamlClient_Init(t *testing.T) {
 			name: "test2_file_error",
 			args: args{
 				samlClient: func() ISamlClient {
-					r := &MockSamlClientReader{
+					r := &MockSamlClientDelegator{
 						delegateOpenFile: func(path string) (io.ReadCloser, error) {
 							r := strings.NewReader(TestDataIdpMetadata)
 							return &MockReaderCloser{
@@ -135,7 +139,7 @@ func Test_SamlClient_Init(t *testing.T) {
 			name: "test3_file_error",
 			args: args{
 				samlClient: func() ISamlClient {
-					r := &MockSamlClientReader{
+					r := &MockSamlClientDelegator{
 						delegateOpenFile: func(path string) (io.ReadCloser, error) {
 							r := strings.NewReader("abc") // 不正なIDP Metadata
 							return &MockReaderCloser{
@@ -165,7 +169,7 @@ func Test_SamlClient_Init(t *testing.T) {
 			name: "test4_file_error",
 			args: args{
 				samlClient: func() ISamlClient {
-					r := &MockSamlClientReader{
+					r := &MockSamlClientDelegator{
 						delegateOpenFile: func(path string) (io.ReadCloser, error) {
 							return nil, errors.New("test error") // ファイルOpenのエラー
 						},
@@ -191,7 +195,7 @@ func Test_SamlClient_Init(t *testing.T) {
 			name: "test5_file_error",
 			args: args{
 				samlClient: func() ISamlClient {
-					r := &MockSamlClientReader{
+					r := &MockSamlClientDelegator{
 						delegateOpenFile: func(path string) (io.ReadCloser, error) {
 							return &MockReaderCloser{
 								deleteRead: func(p []byte) (n int, err error) {
@@ -221,7 +225,7 @@ func Test_SamlClient_Init(t *testing.T) {
 			name: "test6_download_normal",
 			args: args{
 				samlClient: func() ISamlClient {
-					r := &MockSamlClientReader{
+					r := &MockSamlClientDelegator{
 						delegateOpenFile: func(path string) (io.ReadCloser, error) {
 							return nil, nil
 						},
@@ -250,7 +254,7 @@ func Test_SamlClient_Init(t *testing.T) {
 			name: "test7_download_error",
 			args: args{
 				samlClient: func() ISamlClient {
-					r := &MockSamlClientReader{
+					r := &MockSamlClientDelegator{
 						delegateOpenFile: func(path string) (io.ReadCloser, error) {
 							return nil, nil
 						},
@@ -280,7 +284,7 @@ func Test_SamlClient_Init(t *testing.T) {
 			name: "test8_download_normal",
 			args: args{
 				samlClient: func() ISamlClient {
-					r := &MockSamlClientReader{
+					r := &MockSamlClientDelegator{
 						delegateOpenFile: func(path string) (io.ReadCloser, error) {
 							return nil, nil
 						},
@@ -321,7 +325,7 @@ func Test_SamlClient_Init(t *testing.T) {
 			name: "test9_download_error",
 			args: args{
 				samlClient: func() ISamlClient {
-					r := &MockSamlClientReader{
+					r := &MockSamlClientDelegator{
 						delegateOpenFile: func(path string) (io.ReadCloser, error) {
 							return nil, nil
 						},
@@ -347,7 +351,7 @@ func Test_SamlClient_Init(t *testing.T) {
 			name: "test10_error",
 			args: args{
 				samlClient: func() ISamlClient {
-					r := &MockSamlClientReader{
+					r := &MockSamlClientDelegator{
 						delegateOpenFile: func(path string) (io.ReadCloser, error) {
 							return nil, nil
 						},
@@ -406,7 +410,7 @@ func Test_SamlClient_ExecuteSamlLogin(t *testing.T) {
 			name: "test1_normal",
 			args: args{
 				samlClient: func() ISamlClient {
-					r := &MockSamlClientReader{
+					r := &MockSamlClientDelegator{
 						delegateOpenFile: func(path string) (io.ReadCloser, error) {
 							r := strings.NewReader(TestDataIdpMetadata)
 							return &MockReaderCloser{

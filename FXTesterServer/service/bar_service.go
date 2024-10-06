@@ -27,7 +27,7 @@ type BarService struct {
 
 func NewBarService() *BarService {
 	db := &db.DB{}
-	samlClient := saml.NewSamlClient(&saml.SamlClientReader{}, db)
+	samlClient := saml.NewSamlClient(&saml.Delegator{}, db)
 	websockClient := websock.NewWebsockClient()
 
 	return &BarService{
