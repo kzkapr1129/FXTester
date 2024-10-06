@@ -158,7 +158,7 @@ func (e *FxtError) Error() string {
 	arguments := strings.Join(common.ArrayMap(func(input interface{}) string {
 		return fmt.Sprintf("\"%v\"", input)
 	}, e.Arguments), ",")
-	return fmt.Sprintf("{\"code\": \"0x%x\", \"arguments\": [%s], \"case\": \"%s\"}", e.ErrCode, arguments, e.cause)
+	return fmt.Sprintf("{\"code\": \"0x%x\", \"arguments\": [%s], \"case\": \"%v\"}", e.ErrCode, arguments, e.cause)
 }
 
 // FindFxtError 原因となったFxtErrorを返却します
