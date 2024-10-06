@@ -510,6 +510,9 @@ func Test_SamlClient_ExecuteSamlLogin(t *testing.T) {
 }
 
 func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
+	const expectUserId = 1000
+	const expectEmail = "test@test.co.jp"
+
 	type args struct {
 		samlClient     ISamlClient
 		idpMetadataUrl string
@@ -540,7 +543,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 							return &cs.Assertion{
 								Subject: &cs.Subject{
 									NameID: &cs.NameID{
-										Value: "test-name-id",
+										Value: expectEmail,
 									},
 								},
 							}, nil
@@ -551,7 +554,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 						t.Errorf("failed sqlmock.New(): %v", err)
 					}
 					mock.ExpectBegin()
-					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs("test-name-id").WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}).AddRow(0, "test-name-id", "access", "refresh"))
+					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs(expectEmail).WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}).AddRow(expectUserId, expectEmail, "access", "refresh"))
 					mock.ExpectCommit()
 					idb := &MockDB{
 						db: db,
@@ -605,7 +608,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 							return &cs.Assertion{
 								Subject: &cs.Subject{
 									NameID: &cs.NameID{
-										Value: "test-name-id",
+										Value: expectEmail,
 									},
 								},
 							}, nil
@@ -616,8 +619,8 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 						t.Errorf("failed sqlmock.New(): %v", err)
 					}
 					mock.ExpectBegin()
-					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs("test-name-id").WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}))
-					mock.ExpectQuery(regexp.QuoteMeta(`select fxtester_schema.create_user($1)`)).WithArgs("test-name-id").WillReturnRows(sqlmock.NewRows([]string{"res"}).AddRow(0))
+					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs(expectEmail).WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}))
+					mock.ExpectQuery(regexp.QuoteMeta(`select fxtester_schema.create_user($1)`)).WithArgs(expectEmail).WillReturnRows(sqlmock.NewRows([]string{"res"}).AddRow(expectUserId))
 					mock.ExpectCommit()
 					idb := &MockDB{
 						db: db,
@@ -738,7 +741,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 						t.Errorf("failed sqlmock.New(): %v", err)
 					}
 					mock.ExpectBegin()
-					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs("test-name-id").WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}).AddRow(0, "test-name-id", "access", "refresh"))
+					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs(expectEmail).WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}).AddRow(expectUserId, expectEmail, "access", "refresh"))
 					mock.ExpectCommit()
 					idb := &MockDB{
 						db: db,
@@ -798,7 +801,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 						t.Errorf("failed sqlmock.New(): %v", err)
 					}
 					mock.ExpectBegin()
-					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs("test-name-id").WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}).AddRow(0, "test-name-id", "access", "refresh"))
+					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs(expectEmail).WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}).AddRow(expectUserId, expectEmail, "access", "refresh"))
 					mock.ExpectCommit()
 					idb := &MockDB{
 						db: db,
@@ -858,7 +861,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 						t.Errorf("failed sqlmock.New(): %v", err)
 					}
 					mock.ExpectBegin()
-					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs("test-name-id").WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}).AddRow(0, "test-name-id", "access", "refresh"))
+					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs(expectEmail).WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}).AddRow(expectUserId, expectEmail, "access", "refresh"))
 					mock.ExpectCommit()
 					idb := &MockDB{
 						db: db,
@@ -920,7 +923,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 						t.Errorf("failed sqlmock.New(): %v", err)
 					}
 					mock.ExpectBegin()
-					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs("test-name-id").WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}).AddRow(0, "test-name-id", "access", "refresh"))
+					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs(expectEmail).WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}).AddRow(expectUserId, expectEmail, "access", "refresh"))
 					mock.ExpectCommit()
 					idb := &MockDB{
 						db: db,
@@ -984,7 +987,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 						t.Errorf("failed sqlmock.New(): %v", err)
 					}
 					mock.ExpectBegin()
-					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs("test-name-id").WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}).AddRow(0, "test-name-id", "access", "refresh"))
+					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs(expectEmail).WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}).AddRow(expectUserId, expectEmail, "access", "refresh"))
 					mock.ExpectCommit()
 					idb := &MockDB{
 						db: db,
@@ -1038,7 +1041,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 							return &cs.Assertion{
 								Subject: &cs.Subject{
 									NameID: &cs.NameID{
-										Value: "test-name-id",
+										Value: expectEmail,
 									},
 								},
 							}, nil
@@ -1101,7 +1104,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 							return &cs.Assertion{
 								Subject: &cs.Subject{
 									NameID: &cs.NameID{
-										Value: "test-name-id",
+										Value: expectEmail,
 									},
 								},
 							}, nil
@@ -1112,7 +1115,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 						t.Errorf("failed sqlmock.New(): %v", err)
 					}
 					mock.ExpectBegin()
-					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs("test-name-id").WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}))
+					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs(expectEmail).WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}))
 					mock.ExpectQuery(regexp.QuoteMeta(`select fxtester_schema.create_user($1)`)).WillReturnError(errors.New("test-error"))
 					mock.ExpectRollback()
 					idb := &MockDB{
@@ -1167,7 +1170,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 							return &cs.Assertion{
 								Subject: &cs.Subject{
 									NameID: &cs.NameID{
-										Value: "test-name-id",
+										Value: expectEmail,
 									},
 								},
 							}, nil
@@ -1178,7 +1181,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 						t.Errorf("failed sqlmock.New(): %v", err)
 					}
 					mock.ExpectBegin()
-					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs("test-name-id").WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}))
+					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs(expectEmail).WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}))
 					mock.ExpectQuery(regexp.QuoteMeta(`select fxtester_schema.create_user($1)`)).WillReturnError(errors.New("test-error"))
 					mock.ExpectRollback().WillReturnError(errors.New("test-error"))
 					idb := &MockDB{
@@ -1233,7 +1236,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 							return &cs.Assertion{
 								Subject: &cs.Subject{
 									NameID: &cs.NameID{
-										Value: "test-name-id",
+										Value: expectEmail,
 									},
 								},
 							}, nil
@@ -1244,7 +1247,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 						t.Errorf("failed sqlmock.New(): %v", err)
 					}
 					mock.ExpectBegin()
-					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs("test-name-id").WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}).AddRow(0, "test-name-id", "access", "refresh"))
+					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs(expectEmail).WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}).AddRow(expectUserId, expectEmail, "access", "refresh"))
 					mock.ExpectCommit().WillReturnError(errors.New("test-error"))
 					idb := &MockDB{
 						db: db,
@@ -1313,6 +1316,45 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 					if redirectURL != tt.wantRedirectURL {
 						// リダイレクト先URLのチェック
 						t.Errorf("ExecuteSamlAcs()=%v wantRedirectURL=%v", redirectURL, tt.wantRedirectURL)
+					}
+
+					if redirectURL == "http://localhost/test-redirect" {
+						// 成功時
+
+						// クッキーのチェック ここから ==>
+						// アクセストークン
+						parser := &http.Request{Header: http.Header{"Cookie": rec.Header()["Set-Cookie"]}}
+						c, err := parser.Cookie(net.NameAccessToken)
+						if err != nil {
+							t.Errorf("invalid cookie: %v", err)
+						}
+						claims, err := net.VerifyToken[net.AuthSessionPayload](c.Value, net.AccessTokenSecret)
+						if err != nil {
+							t.Errorf("invalid cookie: %v", err)
+						}
+						if claims.Value.UserId != expectUserId {
+							t.Errorf("Invalid wantUserId: %v", claims.Value.UserId)
+						}
+						if claims.Value.Email != expectEmail {
+							t.Error("Empty Email")
+						}
+
+						// リフレッシュトークン
+						c, err = parser.Cookie(net.NameRefreshToken)
+						if err != nil {
+							t.Errorf("invalid cookie: %v", err)
+						}
+						claims, err = net.VerifyToken[net.AuthSessionPayload](c.Value, net.RefreshTokenSecret)
+						if err != nil {
+							t.Errorf("invalid cookie: %v", err)
+						}
+						if claims.Value.UserId != expectUserId {
+							t.Errorf("Invalid wantUserId: %v", claims.Value.UserId)
+						}
+						if claims.Value.Email != expectEmail {
+							t.Error("Empty Email")
+						}
+						// <== ここまで クッキーのチェック
 					}
 				}
 
