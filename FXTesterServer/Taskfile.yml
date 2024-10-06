@@ -39,21 +39,8 @@ tasks:
 
   # 自動テスト
   test:
-    # .env_test:
-    #   テストで使用する環境変数を定義したファイル (オプション)。
-    #   `./env_test_sample`を`.env_test`にリネームして利用する
-    dotenv: [".env_test"]
-
     cmds:
-      - |
-        echo $TEST_TARGET
-        if [ -z $TEST_TARGET ]; then
-          # 全てのテストを実行する場合
-          go test -cover ./... -coverprofile=cover.out
-        else
-          # 特定のテストだけを実行する場合
-          go test -run $TEST_TARGET -cover ./... -coverprofile=cover.out
-        fi
+      - go test -cover ./... -coverprofile=cover.out
       - go tool cover -html=cover.out -o cover.html
       - open cover.html
 

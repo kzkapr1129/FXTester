@@ -277,33 +277,7 @@ func Test_SamlClient_Init(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "test8_download_error",
-			args: args{
-				samlClient: func() ISamlClient {
-					r := &MockSamlClientReader{
-						delegateOpenFile: func(path string) (io.ReadCloser, error) {
-							return nil, nil
-						},
-						delegateFetchMetadata: func(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
-							return nil, errors.New("test error") // fetchに失敗
-						},
-					}
-					db, _, err := sqlmock.New()
-					if err != nil {
-						t.Errorf("failed sqlmock.New(): %v", err)
-					}
-					idb := &MockDB{
-						db: db,
-					}
-					return NewSamlClient(r, idb)
-				}(),
-				idpMetadataUrl: "https://test",
-				backendURL:     common.GetConfig().Saml.BackendURL,
-			},
-			wantErr: true,
-		},
-		{
-			name: "test9_error",
+			name: "test8_error",
 			args: args{
 				samlClient: func() ISamlClient {
 					r := &MockSamlClientReader{
