@@ -345,24 +345,13 @@ func (c *SamlClient) executeSamlSloByOther(ctx echo.Context) (lastError error) {
 		return err
 	}
 
-	// アクセストークンの検証
-	session, err := net.GetAuthSessionAccessToken(ctx.Request())
-	if err == nil {
-		// サインアウトするユーザ情報が一致しているか確認
-		if session.Email != nameId {
-			ctx.Logger().Warnf("cannot delete the auth session: mismatch nameId %s vs %s", session.Email, nameId)
-		} else {
-			// Authセッションの削除
-			net.DeleteAuthSession(ctx.Response().Writer)
-			// DBのクリア
-			if user, err := c.dao.SelectWithEmail(session.Email); err != nil {
-				ctx.Logger().Warnf("cannot select user: email=%s", session.Email)
-			} else if err = c.dao.UpdateToken(user.UserId, "", ""); err != nil {
-				ctx.Logger().Warnf("cannot update token: userId=%d", user.UserId)
-			}
-		}
-	} else {
-		ctx.Logger().Warn("cannot delete the auth session: session nothing")
+	// DBのクリア
+	if user, err := c.dao.SelectWithEmail(nameId); err != nil {
+		ctx.Logger().Warnf("cannot select user: email=%s", nameId)
+		return err
+	} else if err = c.dao.UpdateToken(user.UserId, "", ""); err != nil {
+		ctx.Logger().Warnf("cannot update token: userId=%d", user.UserId)
+		return err
 	}
 
 	// idPのURLを取得
@@ -372,6 +361,19 @@ func (c *SamlClient) executeSamlSloByOther(ctx echo.Context) (lastError error) {
 	if err != nil {
 		return lang.NewFxtError(lang.ErrSamlLogoutResponseCreation).SetCause(err)
 	}
+
+	// アクセストークンの検証
+	session, err := net.GetAuthSessionAccessToken(ctx.Request())
+	if err == nil {
+		// サインアウトするユーザ情報が一致しているか確認
+		if session.Email != nameId {
+			// このパターンが発生するか不明。他SPのシングルログアウトに影響を与えないようにするためエラー処理は行わない
+			ctx.Logger().Warnf("cannot delete the auth session: mismatch nameId %s vs %s", session.Email, nameId)
+		}
+	}
+
+	// Authセッションの削除
+	net.DeleteAuthSession(ctx.Response().Writer)
 
 	// ヘッダの設定
 	ctx.Response().Header().Add(echo.HeaderContentSecurityPolicy, "default-src; "+

@@ -58,7 +58,7 @@ func (u *UserEntityDao) CreateUser(email string) (user *UserEntity, lastError er
 func (u *UserEntityDao) UpdateToken(userId int64, accessToken, refreshToken string) error {
 	rows, err := u.IDaoBase.Query("call fxtester_schema.update_token($1, $2, $3)", userId, accessToken, refreshToken)
 	if err != nil {
-		return nil
+		return err
 	}
 	defer rows.Close()
 	return nil
