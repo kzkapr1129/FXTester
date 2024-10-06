@@ -5,6 +5,8 @@ import (
 	"fxtester/internal/lang"
 )
 
+var ErrNoData = errors.New("no-data")
+
 type Token struct {
 	AccessToken  string
 	RefreshToken string
@@ -90,7 +92,7 @@ func (u *UserEntityDao) SelectWithEmail(email string) (*UserEntity, error) {
 	defer rows.Close()
 
 	if !rows.Next() {
-		return nil, lang.NewFxtError(lang.ErrDBQueryResult).SetCause(err)
+		return nil, ErrNoData
 	}
 
 	var user UserEntity

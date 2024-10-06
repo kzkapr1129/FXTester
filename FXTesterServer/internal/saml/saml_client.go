@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/xml"
+	"errors"
 	"fxtester/internal/common"
 	"fxtester/internal/db"
 	"fxtester/internal/gen"
@@ -219,12 +220,14 @@ func (s *SamlClient) ExecuteSamlAcs(ctx echo.Context) (lastError error) {
 
 		// ユーザが存在するか確認する
 		entity, err := s.dao.SelectWithEmail(email)
-		if err != nil {
+		if errors.Is(err, db.ErrNoData) {
 			// ユーザが存在しない場合はユーザを作成する
 			entity, err = s.dao.CreateUser(email)
 			if err != nil {
 				return err
 			}
+		} else {
+			return err
 		}
 
 		// 認証セッションを作成する
