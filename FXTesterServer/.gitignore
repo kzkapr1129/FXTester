@@ -1,5 +1,6 @@
 .DS_Store
 .envrc
+.env_test
 settings/cert/fx-tester.cert.pem
 settings/cert/fx-tester.key.pem
 cover.html
