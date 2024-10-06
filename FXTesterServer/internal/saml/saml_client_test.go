@@ -64,6 +64,25 @@ func (m *MockReaderCloser) Read(p []byte) (n int, err error) {
 	return m.deleteRead(p)
 }
 
+func NewCookieContext[T any](name string, secret []byte, w http.ResponseWriter, payload T, t *testing.T) echo.Context {
+	req := httptest.NewRequest(echo.POST, "https://localhost", nil)
+
+	expires := time.Now().Add(60 * time.Minute)
+
+	token, err := net.GenerateToken(payload, expires, secret)
+	if err != nil {
+		t.Errorf("failed net.GenerateToken: %v", err)
+	}
+
+	cookie := http.Cookie{
+		Name:  name,
+		Value: token,
+	}
+
+	req.Header.Set("Cookie", cookie.String())
+	return echo.New().NewContext(req, w)
+}
+
 func Test_SamlClient_Init(t *testing.T) {
 	type args struct {
 		samlClient     ISamlClient
@@ -119,17 +138,8 @@ func Test_SamlClient_Init(t *testing.T) {
 								},
 							}, nil
 						},
-						delegateFetchMetadata: func(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
-							return nil, nil
-						},
 					}
-					db, _, err := sqlmock.New()
-					if err != nil {
-						t.Errorf("failed sqlmock.New(): %v", err)
-					}
-					idb := &MockDB{
-						db: db,
-					}
+					idb := &MockDB{}
 					return NewSamlClient(r, idb)
 				}(),
 				idpMetadataUrl: "file://test",
@@ -149,17 +159,8 @@ func Test_SamlClient_Init(t *testing.T) {
 									return r.Read(p)
 								}}, nil
 						},
-						delegateFetchMetadata: func(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
-							return nil, nil
-						},
 					}
-					db, _, err := sqlmock.New()
-					if err != nil {
-						t.Errorf("failed sqlmock.New(): %v", err)
-					}
-					idb := &MockDB{
-						db: db,
-					}
+					idb := &MockDB{}
 					return NewSamlClient(r, idb)
 				}(),
 				idpMetadataUrl: "file://test",
@@ -175,17 +176,8 @@ func Test_SamlClient_Init(t *testing.T) {
 						delegateOpenFile: func(path string) (io.ReadCloser, error) {
 							return nil, errors.New("test error") // ファイルOpenのエラー
 						},
-						delegateFetchMetadata: func(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
-							return nil, nil
-						},
 					}
-					db, _, err := sqlmock.New()
-					if err != nil {
-						t.Errorf("failed sqlmock.New(): %v", err)
-					}
-					idb := &MockDB{
-						db: db,
-					}
+					idb := &MockDB{}
 					return NewSamlClient(r, idb)
 				}(),
 				idpMetadataUrl: "file://test",
@@ -205,17 +197,8 @@ func Test_SamlClient_Init(t *testing.T) {
 								},
 							}, nil
 						},
-						delegateFetchMetadata: func(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
-							return nil, nil
-						},
 					}
-					db, _, err := sqlmock.New()
-					if err != nil {
-						t.Errorf("failed sqlmock.New(): %v", err)
-					}
-					idb := &MockDB{
-						db: db,
-					}
+					idb := &MockDB{}
 					return NewSamlClient(r, idb)
 				}(),
 				idpMetadataUrl: "file://test",
@@ -228,9 +211,6 @@ func Test_SamlClient_Init(t *testing.T) {
 			args: args{
 				samlClient: func() ISamlClient {
 					r := &MockSamlClientDelegator{
-						delegateOpenFile: func(path string) (io.ReadCloser, error) {
-							return nil, nil
-						},
 						delegateFetchMetadata: func(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
 							descriptor, err := cssp.ParseMetadata([]byte(TestDataIdpMetadata))
 							if err != nil {
@@ -239,13 +219,7 @@ func Test_SamlClient_Init(t *testing.T) {
 							return descriptor, nil
 						},
 					}
-					db, _, err := sqlmock.New()
-					if err != nil {
-						t.Errorf("failed sqlmock.New(): %v", err)
-					}
-					idb := &MockDB{
-						db: db,
-					}
+					idb := &MockDB{}
 					return NewSamlClient(r, idb)
 				}(),
 				idpMetadataUrl: "https://test",
@@ -257,9 +231,6 @@ func Test_SamlClient_Init(t *testing.T) {
 			args: args{
 				samlClient: func() ISamlClient {
 					r := &MockSamlClientDelegator{
-						delegateOpenFile: func(path string) (io.ReadCloser, error) {
-							return nil, nil
-						},
 						delegateFetchMetadata: func(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
 							descriptor, err := cssp.ParseMetadata([]byte(TestDataIdpMetadata))
 							if err != nil {
@@ -268,13 +239,7 @@ func Test_SamlClient_Init(t *testing.T) {
 							return descriptor, nil
 						},
 					}
-					db, _, err := sqlmock.New()
-					if err != nil {
-						t.Errorf("failed sqlmock.New(): %v", err)
-					}
-					idb := &MockDB{
-						db: db,
-					}
+					idb := &MockDB{}
 					return NewSamlClient(r, idb)
 				}(),
 				idpMetadataUrl: "https://" + string([]byte{0x7f}), // 不正なURL
@@ -287,9 +252,6 @@ func Test_SamlClient_Init(t *testing.T) {
 			args: args{
 				samlClient: func() ISamlClient {
 					r := &MockSamlClientDelegator{
-						delegateOpenFile: func(path string) (io.ReadCloser, error) {
-							return nil, nil
-						},
 						delegateFetchMetadata: func() func(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
 							count := 0
 
@@ -310,13 +272,7 @@ func Test_SamlClient_Init(t *testing.T) {
 							}
 						}(),
 					}
-					db, _, err := sqlmock.New()
-					if err != nil {
-						t.Errorf("failed sqlmock.New(): %v", err)
-					}
-					idb := &MockDB{
-						db: db,
-					}
+					idb := &MockDB{}
 					return NewSamlClient(r, idb)
 				}(),
 				idpMetadataUrl: "https://test",
@@ -328,20 +284,11 @@ func Test_SamlClient_Init(t *testing.T) {
 			args: args{
 				samlClient: func() ISamlClient {
 					r := &MockSamlClientDelegator{
-						delegateOpenFile: func(path string) (io.ReadCloser, error) {
-							return nil, nil
-						},
 						delegateFetchMetadata: func(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
 							return nil, errors.New("test-error") // 必ずエラー
 						},
 					}
-					db, _, err := sqlmock.New()
-					if err != nil {
-						t.Errorf("failed sqlmock.New(): %v", err)
-					}
-					idb := &MockDB{
-						db: db,
-					}
+					idb := &MockDB{}
 					return NewSamlClient(r, idb)
 				}(),
 				idpMetadataUrl: "https://test",
@@ -354,9 +301,6 @@ func Test_SamlClient_Init(t *testing.T) {
 			args: args{
 				samlClient: func() ISamlClient {
 					r := &MockSamlClientDelegator{
-						delegateOpenFile: func(path string) (io.ReadCloser, error) {
-							return nil, nil
-						},
 						delegateFetchMetadata: func(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
 							return nil, nil
 						},
@@ -421,17 +365,8 @@ func Test_SamlClient_ExecuteSamlLogin(t *testing.T) {
 								},
 							}, nil
 						},
-						delegateFetchMetadata: func(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
-							return nil, nil
-						},
 					}
-					db, _, err := sqlmock.New()
-					if err != nil {
-						t.Errorf("failed sqlmock.New(): %v", err)
-					}
-					idb := &MockDB{
-						db: db,
-					}
+					idb := &MockDB{}
 					return NewSamlClient(r, idb)
 				}(),
 				idpMetadataUrl: "file://test",
@@ -564,29 +499,12 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				idpMetadataUrl: "file://test",
 				backendURL:     common.GetConfig().Saml.BackendURL,
 				ctx: func(w http.ResponseWriter) echo.Context {
-					req := httptest.NewRequest(echo.POST, "https://localhsot", nil)
-
-					now := time.Now()
-					expires := now.Add(60 * time.Minute)
-
 					payload := net.SSOSessionPayload{
 						AuthnRequestId:     "test-authn-request-id",
 						RedirectURL:        "http://localhost/test-redirect",
 						RedirectURLOnError: "http://localhost/test-redirect-test",
 					}
-
-					token, err := net.GenerateToken(payload, expires, net.SSOSessionSecret)
-					if err != nil {
-						t.Errorf("failed net.GenerateToken: %v", err)
-					}
-
-					cookie := http.Cookie{
-						Name:  net.NameSSOToken,
-						Value: token,
-					}
-
-					req.Header.Set("Cookie", cookie.String())
-					return echo.New().NewContext(req, w)
+					return NewCookieContext(net.NameSSOToken, net.SSOSessionSecret, w, payload, t)
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect",
@@ -630,29 +548,12 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				idpMetadataUrl: "file://test",
 				backendURL:     common.GetConfig().Saml.BackendURL,
 				ctx: func(w http.ResponseWriter) echo.Context {
-					req := httptest.NewRequest(echo.POST, "https://localhsot", nil)
-
-					now := time.Now()
-					expires := now.Add(60 * time.Minute)
-
 					payload := net.SSOSessionPayload{
 						AuthnRequestId:     "test-authn-request-id",
 						RedirectURL:        "http://localhost/test-redirect",
 						RedirectURLOnError: "http://localhost/test-redirect-test",
 					}
-
-					token, err := net.GenerateToken(payload, expires, net.SSOSessionSecret)
-					if err != nil {
-						t.Errorf("failed net.GenerateToken: %v", err)
-					}
-
-					cookie := http.Cookie{
-						Name:  net.NameSSOToken,
-						Value: token,
-					}
-
-					req.Header.Set("Cookie", cookie.String())
-					return echo.New().NewContext(req, w)
+					return NewCookieContext(net.NameSSOToken, net.SSOSessionSecret, w, payload, t)
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect",
@@ -751,29 +652,12 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				idpMetadataUrl: "file://test",
 				backendURL:     common.GetConfig().Saml.BackendURL,
 				ctx: func(w http.ResponseWriter) echo.Context {
-					req := httptest.NewRequest(echo.POST, "https://localhsot", nil)
-
-					now := time.Now()
-					expires := now.Add(60 * time.Minute)
-
 					payload := net.SSOSessionPayload{
 						AuthnRequestId:     "test-authn-request-id",
 						RedirectURL:        "http://localhost/test-redirect",
 						RedirectURLOnError: "http://localhost/test-redirect-test",
 					}
-
-					token, err := net.GenerateToken(payload, expires, net.SSOSessionSecret)
-					if err != nil {
-						t.Errorf("failed net.GenerateToken: %v", err)
-					}
-
-					cookie := http.Cookie{
-						Name:  net.NameSSOToken,
-						Value: token,
-					}
-
-					req.Header.Set("Cookie", cookie.String())
-					return echo.New().NewContext(req, w)
+					return NewCookieContext(net.NameSSOToken, net.SSOSessionSecret, w, payload, t)
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
@@ -811,29 +695,12 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				idpMetadataUrl: "file://test",
 				backendURL:     common.GetConfig().Saml.BackendURL,
 				ctx: func(w http.ResponseWriter) echo.Context {
-					req := httptest.NewRequest(echo.POST, "https://localhsot", nil)
-
-					now := time.Now()
-					expires := now.Add(60 * time.Minute)
-
 					payload := net.SSOSessionPayload{
 						AuthnRequestId:     "test-authn-request-id",
 						RedirectURL:        "http://localhost/test-redirect",
 						RedirectURLOnError: "http://localhost/test-redirect-test",
 					}
-
-					token, err := net.GenerateToken(payload, expires, net.SSOSessionSecret)
-					if err != nil {
-						t.Errorf("failed net.GenerateToken: %v", err)
-					}
-
-					cookie := http.Cookie{
-						Name:  net.NameSSOToken,
-						Value: token,
-					}
-
-					req.Header.Set("Cookie", cookie.String())
-					return echo.New().NewContext(req, w)
+					return NewCookieContext(net.NameSSOToken, net.SSOSessionSecret, w, payload, t)
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
@@ -871,29 +738,12 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				idpMetadataUrl: "file://test",
 				backendURL:     common.GetConfig().Saml.BackendURL,
 				ctx: func(w http.ResponseWriter) echo.Context {
-					req := httptest.NewRequest(echo.POST, "https://localhsot", nil)
-
-					now := time.Now()
-					expires := now.Add(60 * time.Minute)
-
 					payload := net.SSOSessionPayload{
 						AuthnRequestId:     "test-authn-request-id",
 						RedirectURL:        "http://localhost/test-redirect",
 						RedirectURLOnError: "http://localhost/test-redirect-test",
 					}
-
-					token, err := net.GenerateToken(payload, expires, net.SSOSessionSecret)
-					if err != nil {
-						t.Errorf("failed net.GenerateToken: %v", err)
-					}
-
-					cookie := http.Cookie{
-						Name:  net.NameSSOToken,
-						Value: token,
-					}
-
-					req.Header.Set("Cookie", cookie.String())
-					return echo.New().NewContext(req, w)
+					return NewCookieContext(net.NameSSOToken, net.SSOSessionSecret, w, payload, t)
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
@@ -933,29 +783,12 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				idpMetadataUrl: "file://test",
 				backendURL:     common.GetConfig().Saml.BackendURL,
 				ctx: func(w http.ResponseWriter) echo.Context {
-					req := httptest.NewRequest(echo.POST, "https://localhsot", nil)
-
-					now := time.Now()
-					expires := now.Add(60 * time.Minute)
-
 					payload := net.SSOSessionPayload{
 						AuthnRequestId:     "test-authn-request-id",
 						RedirectURL:        "http://localhost/test-redirect",
 						RedirectURLOnError: "http://localhost/test-redirect-test",
 					}
-
-					token, err := net.GenerateToken(payload, expires, net.SSOSessionSecret)
-					if err != nil {
-						t.Errorf("failed net.GenerateToken: %v", err)
-					}
-
-					cookie := http.Cookie{
-						Name:  net.NameSSOToken,
-						Value: token,
-					}
-
-					req.Header.Set("Cookie", cookie.String())
-					return echo.New().NewContext(req, w)
+					return NewCookieContext(net.NameSSOToken, net.SSOSessionSecret, w, payload, t)
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
@@ -997,29 +830,12 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				idpMetadataUrl: "file://test",
 				backendURL:     common.GetConfig().Saml.BackendURL,
 				ctx: func(w http.ResponseWriter) echo.Context {
-					req := httptest.NewRequest(echo.POST, "https://localhsot", nil)
-
-					now := time.Now()
-					expires := now.Add(60 * time.Minute)
-
 					payload := net.SSOSessionPayload{
 						AuthnRequestId:     "test-authn-request-id",
 						RedirectURL:        "http://localhost/test-redirect",
 						RedirectURLOnError: "http://localhost/test-redirect-test",
 					}
-
-					token, err := net.GenerateToken(payload, expires, net.SSOSessionSecret)
-					if err != nil {
-						t.Errorf("failed net.GenerateToken: %v", err)
-					}
-
-					cookie := http.Cookie{
-						Name:  net.NameSSOToken,
-						Value: token,
-					}
-
-					req.Header.Set("Cookie", cookie.String())
-					return echo.New().NewContext(req, w)
+					return NewCookieContext(net.NameSSOToken, net.SSOSessionSecret, w, payload, t)
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
@@ -1060,29 +876,12 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				idpMetadataUrl: "file://test",
 				backendURL:     common.GetConfig().Saml.BackendURL,
 				ctx: func(w http.ResponseWriter) echo.Context {
-					req := httptest.NewRequest(echo.POST, "https://localhsot", nil)
-
-					now := time.Now()
-					expires := now.Add(60 * time.Minute)
-
 					payload := net.SSOSessionPayload{
 						AuthnRequestId:     "test-authn-request-id",
 						RedirectURL:        "http://localhost/test-redirect",
 						RedirectURLOnError: "http://localhost/test-redirect-test",
 					}
-
-					token, err := net.GenerateToken(payload, expires, net.SSOSessionSecret)
-					if err != nil {
-						t.Errorf("failed net.GenerateToken: %v", err)
-					}
-
-					cookie := http.Cookie{
-						Name:  net.NameSSOToken,
-						Value: token,
-					}
-
-					req.Header.Set("Cookie", cookie.String())
-					return echo.New().NewContext(req, w)
+					return NewCookieContext(net.NameSSOToken, net.SSOSessionSecret, w, payload, t)
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
@@ -1126,35 +925,66 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				idpMetadataUrl: "file://test",
 				backendURL:     common.GetConfig().Saml.BackendURL,
 				ctx: func(w http.ResponseWriter) echo.Context {
-					req := httptest.NewRequest(echo.POST, "https://localhsot", nil)
-
-					now := time.Now()
-					expires := now.Add(60 * time.Minute)
-
 					payload := net.SSOSessionPayload{
 						AuthnRequestId:     "test-authn-request-id",
 						RedirectURL:        "http://localhost/test-redirect",
 						RedirectURLOnError: "http://localhost/test-redirect-test",
 					}
-
-					token, err := net.GenerateToken(payload, expires, net.SSOSessionSecret)
-					if err != nil {
-						t.Errorf("failed net.GenerateToken: %v", err)
-					}
-
-					cookie := http.Cookie{
-						Name:  net.NameSSOToken,
-						Value: token,
-					}
-
-					req.Header.Set("Cookie", cookie.String())
-					return echo.New().NewContext(req, w)
+					return NewCookieContext(net.NameSSOToken, net.SSOSessionSecret, w, payload, t)
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
 		},
 		{
 			name: "test12_error",
+			args: args{
+				samlClient: func() ISamlClient {
+					r := &MockSamlClientDelegator{
+						delegateOpenFile: func(path string) (io.ReadCloser, error) {
+							r := strings.NewReader(TestDataIdpMetadata)
+							return &MockReaderCloser{
+								deleteRead: func(p []byte) (n int, err error) {
+									return r.Read(p)
+								},
+							}, nil
+						},
+						delegateParseAuthResponse: func(sp cs.ServiceProvider, request *http.Request, possibleRequestIds []string) (*cs.Assertion, error) {
+							return &cs.Assertion{
+								Subject: &cs.Subject{
+									NameID: &cs.NameID{
+										Value: expectEmail,
+									},
+								},
+							}, nil
+						},
+					}
+					db, mock, err := sqlmock.New()
+					if err != nil {
+						t.Errorf("failed sqlmock.New(): %v", err)
+					}
+					mock.ExpectBegin()
+					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WillReturnError(errors.New("test-error"))
+					mock.ExpectRollback()
+					idb := &MockDB{
+						db: db,
+					}
+					return NewSamlClient(r, idb)
+				}(),
+				idpMetadataUrl: "file://test",
+				backendURL:     common.GetConfig().Saml.BackendURL,
+				ctx: func(w http.ResponseWriter) echo.Context {
+					payload := net.SSOSessionPayload{
+						AuthnRequestId:     "test-authn-request-id",
+						RedirectURL:        "http://localhost/test-redirect",
+						RedirectURLOnError: "http://localhost/test-redirect-test",
+					}
+					return NewCookieContext(net.NameSSOToken, net.SSOSessionSecret, w, payload, t)
+				},
+			},
+			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+		},
+		{
+			name: "test13_error",
 			args: args{
 				samlClient: func() ISamlClient {
 					r := &MockSamlClientDelegator{
@@ -1192,35 +1022,18 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				idpMetadataUrl: "file://test",
 				backendURL:     common.GetConfig().Saml.BackendURL,
 				ctx: func(w http.ResponseWriter) echo.Context {
-					req := httptest.NewRequest(echo.POST, "https://localhsot", nil)
-
-					now := time.Now()
-					expires := now.Add(60 * time.Minute)
-
 					payload := net.SSOSessionPayload{
 						AuthnRequestId:     "test-authn-request-id",
 						RedirectURL:        "http://localhost/test-redirect",
 						RedirectURLOnError: "http://localhost/test-redirect-test",
 					}
-
-					token, err := net.GenerateToken(payload, expires, net.SSOSessionSecret)
-					if err != nil {
-						t.Errorf("failed net.GenerateToken: %v", err)
-					}
-
-					cookie := http.Cookie{
-						Name:  net.NameSSOToken,
-						Value: token,
-					}
-
-					req.Header.Set("Cookie", cookie.String())
-					return echo.New().NewContext(req, w)
+					return NewCookieContext(net.NameSSOToken, net.SSOSessionSecret, w, payload, t)
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
 		},
 		{
-			name: "test13_error",
+			name: "test14_error",
 			args: args{
 				samlClient: func() ISamlClient {
 					r := &MockSamlClientDelegator{
@@ -1257,29 +1070,12 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				idpMetadataUrl: "file://test",
 				backendURL:     common.GetConfig().Saml.BackendURL,
 				ctx: func(w http.ResponseWriter) echo.Context {
-					req := httptest.NewRequest(echo.POST, "https://localhsot", nil)
-
-					now := time.Now()
-					expires := now.Add(60 * time.Minute)
-
 					payload := net.SSOSessionPayload{
 						AuthnRequestId:     "test-authn-request-id",
 						RedirectURL:        "http://localhost/test-redirect",
 						RedirectURLOnError: "http://localhost/test-redirect-test",
 					}
-
-					token, err := net.GenerateToken(payload, expires, net.SSOSessionSecret)
-					if err != nil {
-						t.Errorf("failed net.GenerateToken: %v", err)
-					}
-
-					cookie := http.Cookie{
-						Name:  net.NameSSOToken,
-						Value: token,
-					}
-
-					req.Header.Set("Cookie", cookie.String())
-					return echo.New().NewContext(req, w)
+					return NewCookieContext(net.NameSSOToken, net.SSOSessionSecret, w, payload, t)
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
@@ -1410,28 +1206,11 @@ func Test_SamlClient_ExecuteSamlLogout(t *testing.T) {
 				idpMetadataUrl: "file://test",
 				backendURL:     common.GetConfig().Saml.BackendURL,
 				ctx: func(w http.ResponseWriter) echo.Context {
-					req := httptest.NewRequest(echo.POST, "https://localhsot", nil)
-
-					now := time.Now()
-					expires := now.Add(60 * time.Minute)
-
 					payload := net.AuthSessionPayload{
 						UserId: 100,
 						Email:  "test-mail@test.co.jp",
 					}
-
-					token, err := net.GenerateToken(payload, expires, net.AccessTokenSecret)
-					if err != nil {
-						t.Errorf("failed net.GenerateToken: %v", err)
-					}
-
-					cookie := http.Cookie{
-						Name:  net.NameAccessToken,
-						Value: token,
-					}
-
-					req.Header.Set("Cookie", cookie.String())
-					return echo.New().NewContext(req, w)
+					return NewCookieContext(net.NameAccessToken, net.AccessTokenSecret, w, payload, t)
 				},
 				params: gen.GetSamlLogoutParams{
 					XRedirectURL:        "https://localhost/test-redirect",
