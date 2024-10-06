@@ -36,6 +36,7 @@ type IDelegator interface {
 	OpenFile(path string) (io.ReadCloser, error)
 	FetchMetadata(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error)
 	ParseAuthResponse(sp cs.ServiceProvider, request *http.Request, possibleRequestIds []string) (*cs.Assertion, error)
+	ValidateLogoutResponseRequest(sp cs.ServiceProvider, request *http.Request) error
 }
 
 type Delegator struct {
@@ -51,6 +52,9 @@ func (c *Delegator) FetchMetadata(ctx context.Context, url url.URL, timeout time
 }
 func (c *Delegator) ParseAuthResponse(sp cs.ServiceProvider, request *http.Request, possibleRequestIds []string) (*cs.Assertion, error) {
 	return sp.ParseResponse(request, possibleRequestIds)
+}
+func (c *Delegator) ValidateLogoutResponseRequest(sp cs.ServiceProvider, request *http.Request) error {
+	return sp.ValidateLogoutResponseRequest(request)
 }
 
 type ISamlClient interface {
@@ -469,7 +473,7 @@ func (c *SamlClient) executeSamlSloByMySp(ctx echo.Context) (lastError error) {
 	}
 
 	// LogoutResponseの検証
-	if err := c.sp.ValidateLogoutResponseRequest(ctx.Request()); err != nil {
+	if err := c.delegate.ValidateLogoutResponseRequest(c.sp, ctx.Request()); err != nil {
 		return lang.NewFxtError(lang.ErrSLOValidation).SetCause(err)
 	}
 
