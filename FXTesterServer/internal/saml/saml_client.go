@@ -159,7 +159,7 @@ func (s *SamlClient) ExecuteSamlAcs(ctx echo.Context) (lastError error) {
 		net.DeleteSSOSession(ctx.Response().Writer)
 
 		if lastError != nil {
-			ctx.Logger().Error(lastError)
+			ctx.Logger().Errorf("failed ExecuteSamlAcs: %v", lastError)
 
 			// エラーレスポンスを作成
 			_, res := lang.ConvertToGenError(ctx, lastError)
@@ -207,7 +207,7 @@ func (s *SamlClient) ExecuteSamlAcs(ctx echo.Context) (lastError error) {
 			if lastError != nil {
 				err := s.dao.Rollback()
 				if err != nil {
-					ctx.Logger().Error(err)
+					ctx.Logger().Errorf("failed Rollback: %v", err)
 				}
 			} else {
 				err := s.dao.Commit()
