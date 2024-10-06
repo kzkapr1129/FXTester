@@ -89,7 +89,7 @@ func DeleteAuthSession(w http.ResponseWriter) {
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteNoneMode,
-		Path:     "/api",
+		Path:     "/",
 	})
 
 	http.SetCookie(w, &http.Cookie{
@@ -99,7 +99,7 @@ func DeleteAuthSession(w http.ResponseWriter) {
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteNoneMode,
-		Path:     "/api/auth/refresh",
+		Path:     "/", // TODO PATHを限定する
 	})
 }
 
