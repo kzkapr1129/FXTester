@@ -38,11 +38,16 @@ tasks:
       - task: dc:up:db
 
   # 自動テスト
-  test:
+  ## カバレッジ測定有り
+  test:cover:
     cmds:
       - go test -cover ./... -coverprofile=cover.out
       - go tool cover -html=cover.out -o cover.html
       - open cover.html
+  ## カバレッジ測定無し
+  test:
+    cmds:
+      - go test ./...
 
   # lint
   lint:
