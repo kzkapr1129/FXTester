@@ -24,7 +24,7 @@ func Test_FindZigzagPeak(t *testing.T) {
 				input: TestDataNikkei225Week,
 			},
 			wantPanic:   false,
-			wantResults: TestDataNikkei225Week_Result_peaks,
+			wantResults: TestDataNikkei225WeekResultPeaks,
 		},
 	}
 
@@ -49,10 +49,10 @@ func Test_FindZigzagPeak(t *testing.T) {
 					notFounds := []string{}
 					for _, result := range src {
 						contains := slices.ContainsFunc(dest, func(z ZigzagResult) bool {
-							return result.Time.Equal(z.Time)
+							return result.StartTime.Equal(z.StartTime)
 						})
 						if !contains {
-							notFounds = append(notFounds, result.Time.Format("2006-01-02"))
+							notFounds = append(notFounds, result.StartTime.Format("2006-01-02"))
 						}
 					}
 					if 0 < len(notFounds) {
@@ -65,13 +65,13 @@ func Test_FindZigzagPeak(t *testing.T) {
 				// 結果の内容チェック
 				for _, result := range results {
 					expectIndex := slices.IndexFunc(tt.wantResults, func(v ZigzagResult) bool {
-						return v.Time.Equal(result.Time)
+						return v.StartTime.Equal(result.StartTime)
 					})
 					if expectIndex != -1 {
 						expect := tt.wantResults[expectIndex]
 						if result.PeakIndex != expect.PeakIndex || result.BottomIndex != expect.BottomIndex {
 							t.Errorf("Couldn't match indexes: info=%s expect=(%d,%d) actual=(%d, %d)",
-								result.Time.Format("2006-01-02"),
+								result.StartTime.Format("2006-01-02"),
 								expect.PeakIndex, expect.BottomIndex,
 								result.PeakIndex, result.BottomIndex)
 						}
@@ -103,7 +103,7 @@ func Test_FindZigzagBottom(t *testing.T) {
 				input: TestDataNikkei225Week,
 			},
 			wantPanic:   false,
-			wantResults: TestDataNikkei225Week_Result_bottoms,
+			wantResults: TestDataNikkei225WeekResultBottoms,
 		},
 	}
 
@@ -128,10 +128,10 @@ func Test_FindZigzagBottom(t *testing.T) {
 					notFounds := []string{}
 					for _, result := range src {
 						contains := slices.ContainsFunc(dest, func(z ZigzagResult) bool {
-							return result.Time.Equal(z.Time)
+							return result.StartTime.Equal(z.StartTime)
 						})
 						if !contains {
-							notFounds = append(notFounds, result.Time.Format("2006-01-02"))
+							notFounds = append(notFounds, result.StartTime.Format("2006-01-02"))
 						}
 					}
 					if 0 < len(notFounds) {
@@ -144,13 +144,13 @@ func Test_FindZigzagBottom(t *testing.T) {
 				// 結果の内容チェック
 				for _, result := range results {
 					expectIndex := slices.IndexFunc(tt.wantResults, func(v ZigzagResult) bool {
-						return v.Time.Equal(result.Time)
+						return v.StartTime.Equal(result.StartTime)
 					})
 					if expectIndex != -1 {
 						expect := tt.wantResults[expectIndex]
 						if result.PeakIndex != expect.PeakIndex || result.BottomIndex != expect.BottomIndex {
 							t.Errorf("Couldn't match indexes: info=%s expect=(%d,%d) actual=(%d, %d)",
-								result.Time.Format("2006-01-02"),
+								result.StartTime.Format("2006-01-02"),
 								expect.PeakIndex, expect.BottomIndex,
 								result.PeakIndex, result.BottomIndex)
 						}

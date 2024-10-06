@@ -167,6 +167,26 @@ components:
       description: ローソク足配列
       items:
         $ref: "#/components/schemas/Candle"
+    Zigzag:
+      type: object
+      properties:
+        startTime:
+          type: string
+          example: "2024-08-14T11:19:12Z"
+        peakIndex:
+          type: integer
+          minimum: 0
+        bottomIndex:
+          type: integer
+          minimum: 0
+        velocity:
+          type: number
+          format: float
+        delta:
+          type: number
+          format: float
+        kind:
+          enum: [peakToBottom, bottomToPeak]
     PostZigzagRequest:
       type: object
       properties:
@@ -186,11 +206,14 @@ components:
     PostZigzagResult:
       type: object
       properties:
-        uuid:
-          type: string
-          description: 進捗率を受け取るためのUUID
+        items:
+          $ref: "#/components/schemas/Zigzag"
+        count:
+          type: integer
+          minimum: 0
       required:
-        - uuid
+        - count
+        - items
     Progress:
       type: object
       properties:
@@ -425,60 +448,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
   /zigzag:
-    get:
-      tags:
-        - ジグザグAPI
-      summary: Zigzagデータを返却するためのエンドポイント。
-      parameters:
-        - in: query
-          name: uuid
-          schema:
-            type: string
-          description: ZigzagデータのUUID
-      responses:
-        '200':
-          description: Zigzagデータが存在した場合
-        '400':
-          description: |
-            APIパラメータに不備があった場合
-            - 不正なUUIDが指定された場合 等
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        '401':
-          description: 権限エラー
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        '404':
-          description: 期限切れ等の理由でZigzagデータが存在しなかった場合
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        '500':
-          description: |
-            処理続行に困難な問題が発生した場合
-            - サーバー負荷増大により処理を受け取れない
-            - バックエンドのシステムに致命的な確認された 等
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
     post:
       tags:
         - ジグザグAPI
-      summary: CSVまたはローソク足のデータをアップロードし、Zigzagのデータを作成するエンドポイント。
+      summary: ローソク足をジグザグに変換し返却する
       requestBody:
         content:
           multipart/form-data:
             schema:
               $ref: "#/components/schemas/PostZigzagRequest"
       responses:
-        '202':
-          description: 特徴点の抽出要求が受領された場合。
+        '201':
+          description: ジグザグへの変換が正常に完了した場合
           content:
             application/json:
               schema:

@@ -24,7 +24,7 @@ var SSOSessionSecret = makeSecret()       // TODO: スケーラブルに問題�
 var SLOSessionSecret = makeSecret()       // TODO: スケーラブルに問題が出ないように別コマンド化、ファイルに保存？
 var SAMLErrorSessionSecret = makeSecret() // TODO: スケーラブルに問題が出ないように別コマンド化、ファイルに保存？
 
-// クレーム (JWTのペイロード部分)
+// Claims クレーム (JWTのペイロード部分)
 type Claims[T any] struct {
 	Value T `json:"value"`
 	jwt.StandardClaims

@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	NAME_ACCESS_TOKEN     = "access_token"
-	NAME_REFRESH_TOKEN    = "refresh_token"
-	NAME_SSO_TOKEN        = "sso_token"
-	NAME_SLO_TOKEN        = "slo_token"
-	NAME_SAML_ERROR_TOKEN = "saml_error_token"
+	NameAccessToken    = "access_token"
+	NameRefreshToken   = "refresh_token"
+	NameSSOToken       = "sso_token"
+	NameSLOToken       = "slo_token"
+	NameSAMLErrorToken = "saml_error_token"
 )
 
 type AuthSessionPayload struct {
@@ -45,7 +45,7 @@ func CreateAuthSession(w http.ResponseWriter, userId int64, email string, onNewT
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     NAME_ACCESS_TOKEN,
+		Name:     NameAccessToken,
 		Value:    accessToken,
 		Expires:  expiresAccessToken,
 		HttpOnly: true,
@@ -55,7 +55,7 @@ func CreateAuthSession(w http.ResponseWriter, userId int64, email string, onNewT
 	})
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     NAME_REFRESH_TOKEN,
+		Name:     NameRefreshToken,
 		Value:    refreshToken,
 		Expires:  expiresRefreshToken,
 		HttpOnly: true,
@@ -68,7 +68,7 @@ func CreateAuthSession(w http.ResponseWriter, userId int64, email string, onNewT
 }
 
 func GetAuthSessionAccessToken(r *http.Request) (*AuthSessionPayload, error) {
-	cookie, err := r.Cookie(NAME_ACCESS_TOKEN)
+	cookie, err := r.Cookie(NameAccessToken)
 	if err != nil {
 		return nil, lang.NewFxtError(lang.ErrCookieNone).SetCause(err)
 	}
@@ -83,7 +83,7 @@ func GetAuthSessionAccessToken(r *http.Request) (*AuthSessionPayload, error) {
 func DeleteAuthSession(w http.ResponseWriter) {
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     NAME_ACCESS_TOKEN,
+		Name:     NameAccessToken,
 		Value:    "",
 		Expires:  time.Unix(0, 0), // 過去の日付を設定してCookieを削除する
 		HttpOnly: true,
@@ -93,7 +93,7 @@ func DeleteAuthSession(w http.ResponseWriter) {
 	})
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     NAME_REFRESH_TOKEN,
+		Name:     NameRefreshToken,
 		Value:    "",
 		Expires:  time.Unix(0, 0), // 過去の日付を設定してCookieを削除する
 		HttpOnly: true,
@@ -125,7 +125,7 @@ func CreateSSOSession(w http.ResponseWriter, authnRequestId string, redirectURL 
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     NAME_SSO_TOKEN,
+		Name:     NameSSOToken,
 		Value:    token,
 		Expires:  expires,
 		HttpOnly: true,
@@ -138,7 +138,7 @@ func CreateSSOSession(w http.ResponseWriter, authnRequestId string, redirectURL 
 }
 
 func GetSSOSession(r *http.Request) (*SSOSessionPayload, error) {
-	cookie, err := r.Cookie(NAME_SSO_TOKEN)
+	cookie, err := r.Cookie(NameSSOToken)
 	if err != nil {
 		return nil, lang.NewFxtError(lang.ErrCookieNone).SetCause(err)
 	}
@@ -152,7 +152,7 @@ func GetSSOSession(r *http.Request) (*SSOSessionPayload, error) {
 
 func DeleteSSOSession(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     NAME_SSO_TOKEN,
+		Name:     NameSSOToken,
 		Value:    "",
 		Expires:  time.Unix(0, 0), // 過去の日付を設定してCookieを削除する
 		HttpOnly: true,
@@ -186,7 +186,7 @@ func CreateSLOSession(w http.ResponseWriter, userId int64, authnRequestId string
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     NAME_SLO_TOKEN,
+		Name:     NameSLOToken,
 		Value:    token,
 		Expires:  expires,
 		HttpOnly: true,
@@ -199,7 +199,7 @@ func CreateSLOSession(w http.ResponseWriter, userId int64, authnRequestId string
 }
 
 func GetSLOSession(r *http.Request) (*SLOSessionPayload, error) {
-	cookie, err := r.Cookie(NAME_SLO_TOKEN)
+	cookie, err := r.Cookie(NameSLOToken)
 	if err != nil {
 		return nil, lang.NewFxtError(lang.ErrCookieNone).SetCause(err)
 	}
@@ -213,7 +213,7 @@ func GetSLOSession(r *http.Request) (*SLOSessionPayload, error) {
 
 func DeleteSLOSession(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     NAME_SLO_TOKEN,
+		Name:     NameSLOToken,
 		Value:    "",
 		Expires:  time.Unix(0, 0), // 過去の日付を設定してCookieを削除する
 		HttpOnly: true,
@@ -238,7 +238,7 @@ func CreateSamlErrorSession(w http.ResponseWriter, genErr gen.Error) error {
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     NAME_SAML_ERROR_TOKEN,
+		Name:     NameSAMLErrorToken,
 		Value:    token,
 		Expires:  expires,
 		HttpOnly: true,
@@ -251,7 +251,7 @@ func CreateSamlErrorSession(w http.ResponseWriter, genErr gen.Error) error {
 }
 
 func GetSamlErrorSession(r *http.Request) (*gen.ErrorWithTime, error) {
-	cookie, err := r.Cookie(NAME_SAML_ERROR_TOKEN)
+	cookie, err := r.Cookie(NameSAMLErrorToken)
 	if err != nil {
 		return nil, lang.NewFxtError(lang.ErrCookieNone).SetCause(err)
 	}
@@ -265,7 +265,7 @@ func GetSamlErrorSession(r *http.Request) (*gen.ErrorWithTime, error) {
 
 func DeleteSamlErrorSession(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     NAME_SAML_ERROR_TOKEN,
+		Name:     NameSAMLErrorToken,
 		Value:    "",
 		Expires:  time.Unix(0, 0), // 過去の日付を設定してCookieを削除する
 		HttpOnly: true,

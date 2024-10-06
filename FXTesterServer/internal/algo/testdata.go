@@ -38,7 +38,7 @@ var strToTime func(v string) time.Time = func() func(v string) time.Time {
 	}
 }()
 
-// 日経225 (週足): 2023/3/17〜2024/4/19
+// TestDataNikkei225Week 日経225 (週足): 2023/3/17〜2024/4/19
 var TestDataNikkei225Week = []common.Candle{
 	{
 		Time:  strToTime("2023/03/17"),
@@ -652,138 +652,138 @@ var TestDataNikkei225Week = []common.Candle{
 	},
 }
 
-var TestDataNikkei225Week_Result_peaks = []ZigzagResult{
+var TestDataNikkei225WeekResultPeaks = []ZigzagResult{
 	{
-		Time:        strToTime("2023/03/17"),
+		StartTime:   strToTime("2023/03/17"),
 		PeakIndex:   0,
 		BottomIndex: 1,
 	},
 	{
-		Time:        strToTime("2023/06/23"),
+		StartTime:   strToTime("2023/06/23"),
 		PeakIndex:   14,
 		BottomIndex: 18,
 	},
 	{
-		Time:        strToTime("2023/08/04"),
+		StartTime:   strToTime("2023/08/04"),
 		PeakIndex:   20,
 		BottomIndex: 22,
 	},
 	{
-		Time:        strToTime("2023/09/15"),
+		StartTime:   strToTime("2023/09/15"),
 		PeakIndex:   26,
 		BottomIndex: 29,
 	},
 	{
-		Time:        strToTime("2023/10/13"),
+		StartTime:   strToTime("2023/10/13"),
 		PeakIndex:   30,
 		BottomIndex: 33,
 	},
 	{
-		Time:        strToTime("2023/12/01"),
+		StartTime:   strToTime("2023/12/01"),
 		PeakIndex:   37,
 		BottomIndex: 38,
 	},
 	{
-		Time:        strToTime("2023/12/29"),
+		StartTime:   strToTime("2023/12/29"),
 		PeakIndex:   41,
 		BottomIndex: 42,
 	},
 	{
-		Time:        strToTime("2024/03/08"),
+		StartTime:   strToTime("2024/03/08"),
 		PeakIndex:   50,
 		BottomIndex: 51,
 	},
 	{
-		Time:        strToTime("2024/03/22"),
+		StartTime:   strToTime("2024/03/22"),
 		PeakIndex:   52,
 		BottomIndex: 56,
 	},
 	{
-		Time:        strToTime("2024/05/17"),
+		StartTime:   strToTime("2024/05/17"),
 		PeakIndex:   60,
 		BottomIndex: 62,
 	},
 	{
-		Time:        strToTime("2024/06/14"),
+		StartTime:   strToTime("2024/06/14"),
 		PeakIndex:   64,
 		BottomIndex: 65,
 	},
 	{
-		Time:        strToTime("2024/07/19"),
+		StartTime:   strToTime("2024/07/19"),
 		PeakIndex:   69,
 		BottomIndex: 72,
 	},
 }
 
-var TestDataNikkei225Week_Result_bottoms = []ZigzagResult{
+var TestDataNikkei225WeekResultBottoms = []ZigzagResult{
 	{
-		Time:        strToTime("2023/03/24"),
+		StartTime:   strToTime("2023/03/24"),
 		PeakIndex:   14,
 		BottomIndex: 1,
 	},
 
 	{
-		Time:        strToTime("2023/07/21"),
+		StartTime:   strToTime("2023/07/21"),
 		PeakIndex:   20,
 		BottomIndex: 18,
 	},
 
 	{
-		Time:        strToTime("2023/08/18"),
+		StartTime:   strToTime("2023/08/18"),
 		PeakIndex:   26,
 		BottomIndex: 22,
 	},
 
 	{
-		Time:        strToTime("2023/10/06"),
+		StartTime:   strToTime("2023/10/06"),
 		PeakIndex:   30,
 		BottomIndex: 29,
 	},
 
 	{
-		Time:        strToTime("2023/11/02"),
+		StartTime:   strToTime("2023/11/02"),
 		PeakIndex:   37,
 		BottomIndex: 33,
 	},
 
 	{
-		Time:        strToTime("2023/12/08"),
+		StartTime:   strToTime("2023/12/08"),
 		PeakIndex:   41,
 		BottomIndex: 38,
 	},
 
 	{
-		Time:        strToTime("2024/01/05"),
+		StartTime:   strToTime("2024/01/05"),
 		PeakIndex:   50,
 		BottomIndex: 42,
 	},
 
 	{
-		Time:        strToTime("2024/03/15"),
+		StartTime:   strToTime("2024/03/15"),
 		PeakIndex:   52,
 		BottomIndex: 51,
 	},
 
 	{
-		Time:        strToTime("2024/04/19"),
+		StartTime:   strToTime("2024/04/19"),
 		PeakIndex:   60,
 		BottomIndex: 56,
 	},
 
 	{
-		Time:        strToTime("2024/05/31"),
+		StartTime:   strToTime("2024/05/31"),
 		PeakIndex:   64,
 		BottomIndex: 62,
 	},
 
 	{
-		Time:        strToTime("2024/06/21"),
+		StartTime:   strToTime("2024/06/21"),
 		PeakIndex:   69,
 		BottomIndex: 65,
 	},
 
 	{
-		Time:        strToTime("2024/08/09"),
+		StartTime:   strToTime("2024/08/09"),
 		PeakIndex:   76,
 		BottomIndex: 72,
 	},

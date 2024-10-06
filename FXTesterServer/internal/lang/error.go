@@ -13,7 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// エラーコード
+// ErrorCode エラーコード
 type ErrorCode uint32
 
 /**
@@ -161,7 +161,7 @@ func (e *FxtError) Error() string {
 	return fmt.Sprintf("{\"code\": \"0x%x\", \"arguments\": [%s], \"case\": \"%s\"}", e.ErrCode, arguments, e.cause)
 }
 
-// CauseFxtError 原因となったFxtErrorを返却します
+// FindFxtError 原因となったFxtErrorを返却します
 func FindFxtError(err error) *FxtError {
 	type causer interface {
 		Cause() error

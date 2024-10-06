@@ -91,6 +91,13 @@ func ValidatePostZigzag(ctx echo.Context) error {
 			return lang.NewFxtError(lang.ErrInvalidParameterError, fmt.Sprintf("csvInfo[%d]", i))
 		}
 
+		// インデックスの負数チェック
+		for _, v := range indexes {
+			if v < 0 {
+				return lang.NewFxtError(lang.ErrInvalidParameterError, fmt.Sprintf("csvInfo[%d]", i))
+			}
+		}
+
 		// 区切り文字のチェック
 		if t.DelimiterChar == "" || !common.RegexCsvDelimiter.MatchString(string(t.DelimiterChar)) {
 			return lang.NewFxtError(lang.ErrInvalidParameterError, fmt.Sprintf("csvInfo[%d]", i))

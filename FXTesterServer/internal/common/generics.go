@@ -1,3 +1,4 @@
+// Package common 共通機能をまとめたパッケージ
 package common
 
 import (
@@ -75,5 +76,20 @@ func GetEnvAs[T uint16 | int | string](envName string, required bool, defaultVal
 		return (interface{})(envValue).(T), nil
 	default:
 		return v, errors.New("unknown type")
+	}
+}
+
+var errNone = errors.New("none")
+
+func NextValue[T any](vs []T) func() (T, error) {
+	cur := 0
+	return func() (T, error) {
+		if len(vs) <= cur {
+			var t T
+			return t, errNone
+		}
+		v := vs[cur]
+		cur++
+		return v, nil
 	}
 }

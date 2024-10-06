@@ -1,3 +1,4 @@
+// Package algo アルゴリズム関連のパッケージ
 package algo
 
 import (
@@ -14,7 +15,7 @@ const (
 )
 
 type ZigzagResult struct {
-	Time        time.Time
+	StartTime   time.Time
 	PeakIndex   int
 	BottomIndex int
 	Velocity    float64
@@ -57,7 +58,7 @@ func FindZigzagPeakToBottom(candles []common.Candle) []ZigzagResult {
 		velocity := y / float64(x)
 
 		results = append(results, ZigzagResult{
-			Time:        candles[peakIndex].Time,
+			StartTime:   candles[peakIndex].Time,
 			PeakIndex:   peakIndex,
 			BottomIndex: bottomIndex,
 			Velocity:    velocity,
@@ -106,7 +107,7 @@ func FindZigzagBottomToPeak(candles []common.Candle) []ZigzagResult {
 		velocity := y / float64(x)
 
 		results = append(results, ZigzagResult{
-			Time:        candles[bottomIndex].Time,
+			StartTime:   candles[bottomIndex].Time,
 			PeakIndex:   peakIndex,
 			BottomIndex: bottomIndex,
 			Velocity:    velocity,

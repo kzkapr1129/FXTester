@@ -109,8 +109,8 @@ type PostZigzagRequestType string
 
 // PostZigzagResult defines model for PostZigzagResult.
 type PostZigzagResult struct {
-	// Uuid 進捗率を受け取るためのUUID
-	Uuid string `json:"uuid"`
+	Count int    `json:"count"`
+	Items Zigzag `json:"items"`
 }
 
 // SAMLForm defines model for SAMLForm.
@@ -126,6 +126,16 @@ type SAMLRequest struct {
 type SAMLResponse struct {
 	RelayState   *string `json:"RelayState,omitempty"`
 	SAMLResponse *string `json:"SAMLResponse,omitempty"`
+}
+
+// Zigzag defines model for Zigzag.
+type Zigzag struct {
+	BottomIndex *int         `json:"bottomIndex,omitempty"`
+	Delta       *float32     `json:"delta,omitempty"`
+	Kind        *interface{} `json:"kind,omitempty"`
+	PeakIndex   *int         `json:"peakIndex,omitempty"`
+	StartTime   *string      `json:"startTime,omitempty"`
+	Velocity    *float32     `json:"velocity,omitempty"`
 }
 
 // GetSamlLoginParams defines parameters for GetSamlLogin.
@@ -149,12 +159,6 @@ type GetSamlLogoutParams struct {
 // PostSamlSloFormdataBody defines parameters for PostSamlSlo.
 type PostSamlSloFormdataBody struct {
 	union json.RawMessage
-}
-
-// GetZigzagParams defines parameters for GetZigzag.
-type GetZigzagParams struct {
-	// Uuid ZigzagデータのUUID
-	Uuid *string `form:"uuid,omitempty" json:"uuid,omitempty"`
 }
 
 // PostSamlAcsFormdataRequestBody defines body for PostSamlAcs for application/x-www-form-urlencoded ContentType.
@@ -261,9 +265,6 @@ type ClientInterface interface {
 	// GetWsUuid request
 	GetWsUuid(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetZigzag request
-	GetZigzag(ctx context.Context, params *GetZigzagParams, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// PostZigzagWithBody request with any body
 	PostZigzagWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
@@ -354,18 +355,6 @@ func (c *Client) PostSamlSloWithFormdataBody(ctx context.Context, body PostSamlS
 
 func (c *Client) GetWsUuid(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetWsUuidRequest(c.Server)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) GetZigzag(ctx context.Context, params *GetZigzagParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetZigzagRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -620,55 +609,6 @@ func NewGetWsUuidRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewGetZigzagRequest generates requests for GetZigzag
-func NewGetZigzagRequest(server string, params *GetZigzagParams) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/zigzag")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	if params != nil {
-		queryValues := queryURL.Query()
-
-		if params.Uuid != nil {
-
-			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "uuid", runtime.ParamLocationQuery, *params.Uuid); err != nil {
-				return nil, err
-			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-				return nil, err
-			} else {
-				for k, v := range parsed {
-					for _, v2 := range v {
-						queryValues.Add(k, v2)
-					}
-				}
-			}
-
-		}
-
-		queryURL.RawQuery = queryValues.Encode()
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
 // NewPostZigzagRequestWithBody generates requests for PostZigzag with any type of body
 func NewPostZigzagRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
@@ -762,9 +702,6 @@ type ClientWithResponsesInterface interface {
 
 	// GetWsUuidWithResponse request
 	GetWsUuidWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetWsUuidResponse, error)
-
-	// GetZigzagWithResponse request
-	GetZigzagWithResponse(ctx context.Context, params *GetZigzagParams, reqEditors ...RequestEditorFn) (*GetZigzagResponse, error)
 
 	// PostZigzagWithBodyWithResponse request with any body
 	PostZigzagWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostZigzagResponse, error)
@@ -903,35 +840,10 @@ func (r GetWsUuidResponse) StatusCode() int {
 	return 0
 }
 
-type GetZigzagResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON400      *Error
-	JSON401      *Error
-	JSON404      *Error
-	JSON500      *Error
-}
-
-// Status returns HTTPResponse.Status
-func (r GetZigzagResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r GetZigzagResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
 type PostZigzagResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON202      *PostZigzagResult
+	JSON201      *PostZigzagResult
 	JSON400      *Error
 	JSON401      *Error
 	JSON500      *Error
@@ -1021,15 +933,6 @@ func (c *ClientWithResponses) GetWsUuidWithResponse(ctx context.Context, reqEdit
 		return nil, err
 	}
 	return ParseGetWsUuidResponse(rsp)
-}
-
-// GetZigzagWithResponse request returning *GetZigzagResponse
-func (c *ClientWithResponses) GetZigzagWithResponse(ctx context.Context, params *GetZigzagParams, reqEditors ...RequestEditorFn) (*GetZigzagResponse, error) {
-	rsp, err := c.GetZigzag(ctx, params, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseGetZigzagResponse(rsp)
 }
 
 // PostZigzagWithBodyWithResponse request with arbitrary body returning *PostZigzagResponse
@@ -1198,53 +1101,6 @@ func ParseGetWsUuidResponse(rsp *http.Response) (*GetWsUuidResponse, error) {
 	return response, nil
 }
 
-// ParseGetZigzagResponse parses an HTTP response from a GetZigzagWithResponse call
-func ParseGetZigzagResponse(rsp *http.Response) (*GetZigzagResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &GetZigzagResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	}
-
-	return response, nil
-}
-
 // ParsePostZigzagResponse parses an HTTP response from a PostZigzagWithResponse call
 func ParsePostZigzagResponse(rsp *http.Response) (*PostZigzagResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -1259,12 +1115,12 @@ func ParsePostZigzagResponse(rsp *http.Response) (*PostZigzagResponse, error) {
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
 		var dest PostZigzagResult
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON202 = &dest
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest Error
@@ -1312,10 +1168,7 @@ type ServerInterface interface {
 	// Websocketと接続を行うためのエンドポイント。
 	// (GET /ws/:uuid)
 	GetWsUuid(ctx echo.Context) error
-	// Zigzagデータを返却するためのエンドポイント。
-	// (GET /zigzag)
-	GetZigzag(ctx echo.Context, params GetZigzagParams) error
-	// CSVまたはローソク足のデータをアップロードし、Zigzagのデータを作成するエンドポイント。
+	// ローソク足をジグザグに変換し返却する
 	// (POST /zigzag)
 	PostZigzag(ctx echo.Context) error
 }
@@ -1457,24 +1310,6 @@ func (w *ServerInterfaceWrapper) GetWsUuid(ctx echo.Context) error {
 	return err
 }
 
-// GetZigzag converts echo context to params.
-func (w *ServerInterfaceWrapper) GetZigzag(ctx echo.Context) error {
-	var err error
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params GetZigzagParams
-	// ------------- Optional query parameter "uuid" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "uuid", ctx.QueryParams(), &params.Uuid)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter uuid: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetZigzag(ctx, params)
-	return err
-}
-
 // PostZigzag converts echo context to params.
 func (w *ServerInterfaceWrapper) PostZigzag(ctx echo.Context) error {
 	var err error
@@ -1518,7 +1353,6 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/saml/logout", wrapper.GetSamlLogout)
 	router.POST(baseURL+"/saml/slo", wrapper.PostSamlSlo)
 	router.GET(baseURL+"/ws/:uuid", wrapper.GetWsUuid)
-	router.GET(baseURL+"/zigzag", wrapper.GetZigzag)
 	router.POST(baseURL+"/zigzag", wrapper.PostZigzag)
 
 }
@@ -1526,58 +1360,57 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/+xa61IbR/Z/Ff37nw9QkdBIgDdWyuXyJY7J2oEyeJ0N0qYGqZEmmYsy0+LihCpmxjY3",
-	"EYhjg7G9a+MLEAhgB18AY/MwzUjiU15hq7tH0kgaJCjjZLNrl4sa9XSfPtffOad7vgNRRUoqMpSRBkLf",
-	"AS2agBJPH0/xckyE5CkGtagqJJGgyCAEsLmMzS1svMbGau7FGvCCpKokoYoESNdFRUVzWZZ9bliDj4AX",
-	"wD5eShLCgWauoTnY5AXdiirxCIRAt6jwCHiBJMiClJJAiPMC1J+EIATklNQFVTDgBQkhnqgkv7t0q4J8",
-	"oKG5sfGg5EWlt5K6tTJSTr3paEPw4MwrSSi7kJ8fc9FNgAsclDwSJBfVZ6YfZ2YMJ3kQ5AJNvgDnC3Ad",
-	"gcZQMxdq4hqaj/zlQ+5oiOOAY9t/hMOx75oGfHXHQ1xnwHc08n2gk/MFI/WOkc6ALxjp5MhjYyfnC0Tq",
-	"O+qOh+gTGw12cr7GSD0ZamZDjse646FwuIE+flh/vO546MvvOz/0RWpRqP8AFBSgIVWQ42BgwAtU+G1K",
-	"UGEMhDqZNmyd237D7Ou1nTRSoKB0fQ2jiKiQub1W0+93r45bw9PACwQEJTr9AxV2gxD4f38xpPx2PPnt",
-	"YBoobMirKt9P99N6WuRuhRBwiaNTipiS5BY5Bvv2CilsLGHzZ2zex/oKNh5hcw2bQ9g0sbGKjY3szUVr",
-	"4mUdZ82PYf0NNkbrnX7Q5OpPgoxgnDlUDIqCJCConkrwaiUHUa0HmzexMUs3XsL6ipXetIaHsDGamRqy",
-	"lqdLnM5b4lid3nAYhcNahBhS4vvOQTmOEiAUoDw5fpUZmVAUNKSdhXwM7sGTvoTNW0QH5mBuNo31tLV8",
-	"y7q7gPUZbIxhfczJVjcvarCwS5eiiJCX80BTVf8Mc95G/8Fa+heV3qosMGB6GxYaa7FAwqc6DxS93oaH",
-	"QC0eSCRX5SEzY+xO/fQ2PHDVeSiDlhIXLA+TSn4rtVjpXhXG9lZCgBtgfaKqiuoCH0rMLXkbzwmImZPY",
-	"3LKuXd01F7A+v/N6O3tjAevTWJ/D+hUSIsYCVeQWNtbo/JGSQOb6PuI4jgs44zklyKgxCNysJ0FN4+Ou",
-	"3OS3MWepmV7RLdc9ddaj27mFwdziv6z0lLX6Jvd0tsRYwLausU0XjxLsKdDS09mZzeyNe1SgN/TvPTxo",
-	"hOW6SrFCnrws9WG5ZkKhOi3Ks6c1Lgko0WGn4lKrQFWtlSqYPR3J3Jm1g00+7iNfoKkjEAgFjoYCwULG",
-	"rs452dem6Mb1GcG90iuBdmxew8YyNjawOUwVew/rq8SVyIRRbC7SYNvCxrbTL7oEmVf7gQuMtyka+lKI",
-	"X+bjF+C3KaghFycuJuPa2VUjRKNaT63ZVFg2NZ95qxK3pxVydwX+XX1sjd4pCE+xZ5sqhaY/mSBKJ2XM",
-	"WxAo4nRm9qpGLUPeupnOqUUtJbooMZUSYi7Ja/DXzPh09ochbFy3Jqax/qM1MUWz4z1s6FhfuXix5XRN",
-	"tihtN7baT5w/d0ZRpVIHtp9Cnu/DsscTTnFcY/T/Tree6vh72yeeBJJEOgSLL0vH8qNdSqzfOZofJ07n",
-	"kSBKKLFjYdDW2t4RBh6BPBN2bC8jXIVB6fI8AUFOppBH5iVYuiYMPNh8xf67bewnO7u9YBpnb2JKNCVB",
-	"GTXEIfpEhOTxZH9LrM6Fu/oGLdUlCaiu3qbvpOPUhL9UFfagU2tukefYr9JdLkCR729HPCoDn76+viq0",
-	"YIrRKs5vO/t5outSX2+r+JkYbTzZ0yV/LracTaCuT5svt8rsXVv7Z4Go1HSkK3jmMv/F+SNd0hn05Rfn",
-	"j8QK2nb1QFdvuwC1pCJr8JAkKhL7I0Qa8AINRlOqgPrbCQ7lc7ryjQBPpBBtgAVa7dIh4AXEaUlfEY1C",
-	"TfsKKd9Ah+n5pPBX2A8GCF3BxjxRiEJbQnvt+ZYOlncQlfYkr7ZDtUeIEvI9UNUYcAQauAYuXxjySQGE",
-	"QCMd8oIkjxKUUb/GS6Kfj9IfSYW5BjEJT9CnJUZ0qWionZfEE1ENMEyBGjqpxPqZoDKCMl3FJ5OiEKXr",
-	"/H2+3t5eH4k1X0oVoUzycax4bFELyUsMOzDAsIz9pIw2ckGXynL5obW+nn1u7Gxes9FHzcdW3R5Fxz3r",
-	"/jNrchjrq2cRShZaEayvnFOYKFhfytzfyj4bx/pNbKTJ/3ztdfHCOawvkb/mj5T4LMsrdUSnX0FSHRwL",
-	"1GM9vfPq1s76D3kCY6yASdCSlIqT38stsS8SdkiK+oXUxuawdXWYQP6Fc8DrUGbR8xMIJbWQ399H/vlF",
-	"JS7Ix538uPp0O0S+U8w/S2xUJOv01mOE9MeeNh4ljvk/9hDNtcpiv9ejwm4VagmXWR2tp1udM4scuUym",
-	"LklfFpe4sD3gjD0Q6ox4gZaSJFLDhEBLrA3rY9gYcWbM3OJ4bmGLqnIDm/+kdenGb1vDxN2w8cAuuY2X",
-	"2JzH5tpvWyMk4w7NZSev2f0ocaI1bI6QxXbXMowHDcIcH9dImmVbnGhrARHCnkMWos84dImvTyENL1ZN",
-	"ljl6kOOqRNnXGvOZ/QVVacFLtbd3ALEjhW7erlMOjwG3jXc2hzN3WUAu0tCqFqugmtmpJc1lbDyx7UNK",
-	"PJta7ue17LMn2Lie275hjT+rYtJa9qRRVcue5+gkArUqL0FEQ72zsq96Sb3wCe2LnuebpUVsrlkr6Z3N",
-	"a5kZg56RlMMAARP9Dq3srxAEMq5n0kPWym0mFfCynJPIt7123vjCdwHGBBVGkY8hSLFCRGoK7gdR3PDj",
-	"AFIVrPEuBfO1yr5iOB2ChJGaYYlgH6LV3MGSHC28a4ViSa6oDdWapuwFqnxUqwGpv2PUV/MSPZ1beGpN",
-	"rNo5k8DCGNYf7g8EsDlHcfwFNq5X3YR6mjFWAhjmIj2DWrC7Z+P6zuu7meFJgkCDOjEX1ldIv0Kc1xim",
-	"PM0JJNks7Q7qO9uzeVjZoO68iM1pSmab7nDdmlzCxk9Yv3+2g6Sc2lC0j+wiKnElhfYBR2TWQfDIVssD",
-	"bMyRwuO/BI9KpXImiPeQ9M4gSdwTkjRR+V+DpHIPLIOh/PifD4k0UandRraLymG2kYoMW7spktVuKNk5",
-	"CsGH/TefEZf2853H2s6rqfa23POXWWODAlQV+EpXa3tJFe/eK9/95VA2eN9Xv2Vf/cc0wjWhJt/1Eqgp",
-	"Yhf5uzd8HRw0ejV/KH/mvVftckm7SGaURWCAC1Qa9RLs0pToNxDRK5AJmxvjJTbmCUPGasGZsb7EypmS",
-	"xtIL+ny9eRq+Fv8ZsoUKoz0HSjylJ5p8dA8HJPpbLZw1WJPjjhuIpKrEVahpjvP64qFnku8XFT62f+xr",
-	"y1MbiLidXzLnkWMHErL8hoLlm1Xr6gLW57JXZnNzU4WwrPju6EA6qSZ/eUzfpn63XLgHrX14y8QPck2V",
-	"5C5ebDlNcunUg93BhywvkgT8eBnrafJTny/1Ihu88sWAFzQd9tmNW6Y40dZShpJYX9pZH7eMGcqn4SxR",
-	"wrLPs7M+nll+iPVFJl86X8qyosae6Mkuj7Ds0cQC7d0KkVn4eXdmspBKyL7Nv4fyGMplX9ymn54sWXee",
-	"7N4hqrFuTuzSj1EqMxpRofNqPvfr/dz4S+vBtPVo3i7EjFEbPUuu61jFeIWuJytNG3EZSLEcTND3Gv0o",
-	"Yik39Mz68XX29hWsL2YfbOYWxwsmyhtnwAnzDuxbyPzwOPviNqnpiBDXCveE+0DoAhkboS/T+8pq+Mxu",
-	"NGv1lWyW8+bVvrSkrdO3KUgvnu3OKcUAv2jcffY+NbYsfFrkPEt8H6ZvFaZNDDnf8b537+3OTNKP1dLZ",
-	"ZRIsJGpvPMX6fFUjV3Zo73HloLhSruCyRvEA0IKNdVo3vsDGE1YCeqt0igVY2btRlFIiEpK8iuidvi/G",
-	"I37/tqv8pMW1zwsemrNUfP3h4jfZkQ3rzTPWk2VGX1tDm7k5PfPUIG49Mb17/1ZZ/BMF/+ciWNmlTvni",
-	"FQZpzHEdny85cgQj/74Y+bOBxqn2vzk+Oyv5GJu2ZkUwISW/adKjKbtsZz2nDTulk/PnX/s8oqoEHNbq",
-	"qD35GiWlio7OXlSivJhQNBT6iOM4P2mX/h0AAP//HgIBQnUxAAA=",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

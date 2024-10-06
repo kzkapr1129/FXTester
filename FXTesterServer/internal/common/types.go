@@ -1,3 +1,4 @@
+// Package common 共通機能をまとめたパッケージ
 package common
 
 import (
