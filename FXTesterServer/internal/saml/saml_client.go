@@ -226,7 +226,7 @@ func (s *SamlClient) ExecuteSamlAcs(ctx echo.Context) (lastError error) {
 			if err != nil {
 				return err
 			}
-		} else {
+		} else if err != nil {
 			return err
 		}
 
