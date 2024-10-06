@@ -20,19 +20,19 @@ import (
 
 type BarService struct {
 	samlClient saml.ISamlClient
-	dbWrapper  db.IDbWrapper
+	idb        db.IDB
 
 	websockClient *websock.WebsockClient
 }
 
 func NewBarService() *BarService {
-	dbWrapper := &db.DbWrapper{}
-	samlClient := saml.NewSamlClient(&saml.SamlClientReader{}, dbWrapper)
+	db := &db.DB{}
+	samlClient := saml.NewSamlClient(&saml.SamlClientReader{}, db)
 	websockClient := websock.NewWebsockClient()
 
 	return &BarService{
 		samlClient:    samlClient,
-		dbWrapper:     dbWrapper,
+		idb:           db,
 		websockClient: websockClient,
 	}
 }
@@ -43,7 +43,7 @@ func (b *BarService) Init() error {
 		return err
 	}
 	// DBハンドルプロバイダーの初期化
-	if err := b.dbWrapper.Init(); err != nil {
+	if err := b.idb.Init(); err != nil {
 		return err
 	}
 	return nil

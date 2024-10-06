@@ -65,10 +65,10 @@ type SamlClient struct {
 }
 
 // NewSamlClient SAMLクライアントを生成します
-func NewSamlClient(reader ISamlClientReader, dbProvider db.IDbWrapper) ISamlClient {
+func NewSamlClient(reader ISamlClientReader, idb db.IDB) ISamlClient {
 	return &SamlClient{
 		reader: reader,
-		dao:    db.NewUserEntityDao(dbProvider),
+		dao:    db.NewUserEntityDao(idb),
 	}
 }
 

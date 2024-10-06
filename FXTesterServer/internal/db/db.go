@@ -7,25 +7,25 @@ import (
 	"time"
 )
 
-type IDbWrapper interface {
+type IDB interface {
 	Init() error
-	GetDb() *sql.DB
+	GetDB() *sql.DB
 }
 
-type DbWrapper struct {
+type DB struct {
 	db *sql.DB
 }
 
-func (d *DbWrapper) Init() error {
-	db, err := sql.Open(common.GetConfig().Db.Name, common.GetConfig().Db.Dsn)
+func (d *DB) Init() error {
+	db, err := sql.Open(common.GetConfig().DB.Name, common.GetConfig().DB.Dsn)
 	if err != nil {
 		return lang.NewFxtError(lang.ErrDBOpen).SetCause(err)
 	}
 
 	// コネクションプールの設定
-	db.SetMaxOpenConns(common.GetConfig().Db.MaxOpenConnections)
-	db.SetMaxIdleConns(common.GetConfig().Db.MaxIdleConnections)
-	db.SetConnMaxLifetime(time.Duration(common.GetConfig().Db.MaxLifeTimeBySec) * time.Second)
+	db.SetMaxOpenConns(common.GetConfig().DB.MaxOpenConnections)
+	db.SetMaxIdleConns(common.GetConfig().DB.MaxIdleConnections)
+	db.SetConnMaxLifetime(time.Duration(common.GetConfig().DB.MaxLifeTimeBySec) * time.Second)
 
 	if err := db.Ping(); err != nil {
 		return lang.NewFxtError(lang.ErrDBOpen).SetCause(err)
@@ -35,7 +35,7 @@ func (d *DbWrapper) Init() error {
 	return nil
 }
 
-func (d *DbWrapper) GetDb() *sql.DB {
+func (d *DB) GetDB() *sql.DB {
 	if d.db == nil {
 		panic("DB hasn't initialized yet")
 	}

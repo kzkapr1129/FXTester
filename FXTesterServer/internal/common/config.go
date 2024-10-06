@@ -30,7 +30,7 @@ type Config struct {
 	} `yaml:"server"`
 
 	// DB設定
-	Db struct {
+	DB struct {
 		// データベース名前(e.g. postgres)
 		Name string `yaml:"name"`
 		// Data Source Name

@@ -24,10 +24,10 @@ type UserEntityDao struct {
 	IDaoBase
 }
 
-func NewUserEntityDao(dbWrapper IDbWrapper) IUserEntityDao {
+func NewUserEntityDao(idb IDB) IUserEntityDao {
 	return &UserEntityDao{
 		IDaoBase: &DaoBase{
-			dbWrapper: dbWrapper,
+			db: idb,
 		},
 	}
 }
