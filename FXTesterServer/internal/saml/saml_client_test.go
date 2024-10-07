@@ -109,6 +109,11 @@ func toFormUrlencoded(str string) string {
 	return base64.StdEncoding.EncodeToString([]byte(str))
 }
 
+func uint32ptr(v int) *uint32 {
+	tmp := uint32(v)
+	return &tmp
+}
+
 func Test_SamlClient_Init(t *testing.T) {
 	type args struct {
 		samlClient     ISamlClient
@@ -486,6 +491,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 		args            args
 		wantErr         bool
 		wantRedirectURL string
+		wantSamlErr     *uint32
 	}{
 		{
 			name: "test1_normal",
@@ -548,6 +554,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect",
+			wantSamlErr:     uint32ptr(0),
 		},
 		{
 			name: "test2_normal",
@@ -611,6 +618,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect",
+			wantSamlErr:     uint32ptr(0),
 		},
 		{
 			name: "test3_error",
@@ -724,6 +732,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000010),
 		},
 
 		{
@@ -776,6 +785,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000012),
 		},
 
 		{
@@ -828,6 +838,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000012),
 		},
 
 		{
@@ -882,6 +893,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000012),
 		},
 
 		{
@@ -938,6 +950,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000012),
 		},
 		{
 			name: "test10_error",
@@ -993,6 +1006,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000014),
 		},
 		{
 			name: "test11_error",
@@ -1051,6 +1065,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000017),
 		},
 		{
 			name: "test12_error",
@@ -1108,6 +1123,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000017),
 		},
 		{
 			name: "test13_error",
@@ -1166,6 +1182,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000017), // ロールバックエラー時はlastErrorを書き換えないためErrDBQueryとなる
 		},
 		{
 			name: "test14_error",
@@ -1190,7 +1207,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 							}, nil
 						},
 					}
-					db, mock, err := sqlmock.New()
+					mockDB, mock, err := sqlmock.New()
 					if err != nil {
 						t.Errorf("failed sqlmock.New(): %v", err)
 					}
@@ -1198,9 +1215,14 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 					mock.ExpectQuery(regexp.QuoteMeta(`select id, email, access_token, refresh_token from fxtester_schema.select_user_with_email($1)`)).WithArgs(expectEmail).WillReturnRows(sqlmock.NewRows([]string{"id", "email", "access_token", "refresh_token"}).AddRow(expectUserId, expectEmail, "access", "refresh"))
 					mock.ExpectCommit().WillReturnError(errors.New("test-error"))
 					idb := &MockDB{
-						db: db,
+						db: mockDB,
 					}
-					return NewSamlClient(r, idb)
+					return &SamlClient{
+						delegate: r,
+						dao: &MockUserDao{
+							IUserEntityDao: db.NewUserEntityDao(idb),
+						},
+					}
 				}(),
 				idpMetadataUrl: "file://test",
 				backendURL:     common.GetConfig().Saml.BackendURL,
@@ -1223,6 +1245,7 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 				},
 			},
 			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000016),
 		},
 	}
 
@@ -1258,12 +1281,13 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 						t.Errorf("ExecuteSamlAcs()=%v wantRedirectURL=%v", redirectURL, tt.wantRedirectURL)
 					}
 
+					parser := &http.Request{Header: http.Header{"Cookie": rec.Header()["Set-Cookie"]}}
+
 					if redirectURL == "http://localhost/test-redirect" {
 						// 成功時
 
 						// クッキーのチェック ここから ==>
 						// アクセストークン
-						parser := &http.Request{Header: http.Header{"Cookie": rec.Header()["Set-Cookie"]}}
 						c, err := parser.Cookie(net.NameAccessToken)
 						if err != nil {
 							t.Errorf("invalid cookie: %v", err)
@@ -1294,10 +1318,23 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 						if claims.Value.Email != expectEmail {
 							t.Error("Empty Email")
 						}
-						// <== ここまで クッキーのチェック
 					}
-				}
 
+					// エラートークン
+					c, err := parser.Cookie(net.NameSAMLErrorToken)
+					if (tt.wantSamlErr != nil) != (err == nil) {
+						t.Errorf("ExecuteSamlAcs()=%v, wantSamlErr=%v", err, tt.wantSamlErr)
+					} else if err == nil {
+						errClaims, err := net.VerifyToken[gen.ErrorWithTime](c.Value, net.SAMLErrorSessionSecret)
+						if err != nil {
+							t.Errorf("invalid cookie: %v", err)
+						}
+						if errClaims.Value.Err.Code != *tt.wantSamlErr {
+							t.Errorf("ExecuteSamlAcs()=%v, wantSamlErr=%v", errClaims.Value.Err.Code, tt.wantSamlErr)
+						}
+					}
+					// <== ここまで クッキーのチェック
+				}
 			}
 		})
 
