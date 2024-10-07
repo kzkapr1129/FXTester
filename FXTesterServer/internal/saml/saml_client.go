@@ -212,6 +212,7 @@ func (s *SamlClient) ExecuteSamlAcs(ctx echo.Context) (lastError error) {
 			if lastError != nil {
 				err := s.dao.Rollback()
 				if err != nil {
+					// ロールバック失敗時は本来のエラーを書き換えないようにlastErrorはそのままにする
 					ctx.Logger().Errorf("failed Rollback: %v", err)
 				}
 			} else {
@@ -455,15 +456,10 @@ func (c *SamlClient) executeSamlSloByMySp(ctx echo.Context) (lastError error) {
 	}
 
 	// LogoutResponseからInResponseTo(AuthnRequest.ID)を取り出す
-	logoutRequestId, err := func() (string, error) {
-		if logoutResponse.InResponseTo == "" {
-			// AuthnRequestIDが格納されていない場合
-			return "", lang.NewFxtError(lang.ErrEmptyLogoutRequestId)
-		}
-		return logoutResponse.InResponseTo, nil
-	}()
-	if err != nil {
-		return err
+	logoutRequestId := logoutResponse.InResponseTo
+	if logoutRequestId == "" {
+		// AuthnRequestIDが格納されていない場合
+		return lang.NewFxtError(lang.ErrEmptyLogoutRequestId)
 	}
 
 	// IDが一致しているか確認

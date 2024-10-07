@@ -1297,10 +1297,10 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 							t.Errorf("invalid cookie: %v", err)
 						}
 						if claims.Value.UserId != expectUserId {
-							t.Errorf("Invalid wantUserId: %v", claims.Value.UserId)
+							t.Errorf("ExecuteSamlAcs()=%v expectUserId=%v", claims.Value.UserId, expectUserId)
 						}
 						if claims.Value.Email != expectEmail {
-							t.Error("Empty Email")
+							t.Errorf("ExecuteSamlAcs()=%v expectEmail=%v", claims.Value.Email, expectEmail)
 						}
 
 						// リフレッシュトークン
@@ -1313,10 +1313,10 @@ func Test_SamlClient_ExecuteSamlAcs(t *testing.T) {
 							t.Errorf("invalid cookie: %v", err)
 						}
 						if claims.Value.UserId != expectUserId {
-							t.Errorf("Invalid wantUserId: %v", claims.Value.UserId)
+							t.Errorf("ExecuteSamlAcs()=%v expectUserId=%v", claims.Value.UserId, expectUserId)
 						}
 						if claims.Value.Email != expectEmail {
-							t.Error("Empty Email")
+							t.Errorf("ExecuteSamlAcs()=%v expectEmail=%v", claims.Value.Email, expectEmail)
 						}
 					}
 
@@ -1511,7 +1511,6 @@ func Test_SamlClient_ExecuteSamlSlo(t *testing.T) {
 						t.Errorf("failed sqlmock.New(): %v", err)
 					}
 					mock.ExpectBegin()
-					mock.ExpectQuery(regexp.QuoteMeta(`call fxtester_schema.update_token($1, $2, $3)`)).WillReturnError(errors.New("test-error"))
 					mock.ExpectCommit()
 					idb := &MockDB{
 						db: mockDB,
