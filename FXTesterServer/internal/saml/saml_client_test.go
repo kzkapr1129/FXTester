@@ -72,9 +72,13 @@ func (m *MockReaderCloser) Read(p []byte) (n int, err error) {
 
 type MockUserDao struct {
 	db.IUserEntityDao
+	delegateUpdateToken func() error
 }
 
-func (*MockUserDao) UpdateToken(userId int64, accessToken, refreshToken string) error {
+func (m *MockUserDao) UpdateToken(userId int64, accessToken, refreshToken string) error {
+	if m.delegateUpdateToken != nil {
+		return m.delegateUpdateToken()
+	}
 	// accessTokenとrefreshTokenの値が動的となり、sqlmockでは対処が難しいためメソッドをオーバーライドして対処する
 	return nil
 }
@@ -1474,7 +1478,7 @@ func Test_SamlClient_ExecuteSamlLogout(t *testing.T) {
 	}
 }
 
-func Test_SamlClient_ExecuteSamlSlo(t *testing.T) {
+func Test_SamlClient_ExecuteSamlSlo_MySp(t *testing.T) {
 	const expectUserId = 100
 	type args struct {
 		samlClient     ISamlClient
@@ -1484,10 +1488,12 @@ func Test_SamlClient_ExecuteSamlSlo(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		args       args
-		wantErr    bool
-		wantUserId int64
+		name            string
+		args            args
+		wantErr         bool
+		wantUserId      int64
+		wantRedirectURL string
+		wantSamlErr     *uint32
 	}{
 		{
 			name: "test1_normal",
@@ -1556,6 +1562,691 @@ func Test_SamlClient_ExecuteSamlSlo(t *testing.T) {
 					return ctx
 				},
 			},
+			wantRedirectURL: "http://localhost/test-redirect",
+			wantSamlErr:     uint32ptr(0),
+		},
+		{
+			name: "test2_error",
+			args: args{
+				samlClient: func() ISamlClient {
+					r := &MockSamlClientDelegator{
+						delegateOpenFile: func(path string) (io.ReadCloser, error) {
+							r := strings.NewReader(TestDataIdpMetadata)
+							return &MockReaderCloser{
+								deleteRead: func(p []byte) (n int, err error) {
+									return r.Read(p)
+								},
+							}, nil
+						},
+						delegateValidateLogoutResponseRequest: func(sp cs.ServiceProvider, request *http.Request) error {
+							return nil
+						},
+					}
+					idb := &MockDB{}
+					return &SamlClient{
+						delegate: r,
+						dao: &MockUserDao{
+							IUserEntityDao: db.NewUserEntityDao(idb),
+						},
+					}
+				}(),
+				idpMetadataUrl: "file://test",
+				backendURL:     common.GetConfig().Saml.BackendURL,
+				ctx: func(w http.ResponseWriter) echo.Context {
+					ctx := NewCookieContext([]struct {
+						name    string
+						secret  []byte
+						payload any
+					}{
+						{
+							name:   net.NameAccessToken,
+							secret: net.AccessTokenSecret,
+							payload: net.AuthSessionPayload{
+								UserId: expectUserId,
+								Email:  "test-mail@test.co.jp",
+							},
+						},
+						// SLOセッションが未作成
+					}, w, t)
+
+					ctx.Request().Form = url.Values{}
+					ctx.Request().Form.Add("SAMLResponse", toFormUrlencoded(TestDataLogoutResponse))
+
+					return ctx
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "test3_error",
+			args: args{
+				samlClient: func() ISamlClient {
+					r := &MockSamlClientDelegator{
+						delegateOpenFile: func(path string) (io.ReadCloser, error) {
+							r := strings.NewReader(TestDataIdpMetadata)
+							return &MockReaderCloser{
+								deleteRead: func(p []byte) (n int, err error) {
+									return r.Read(p)
+								},
+							}, nil
+						},
+						delegateValidateLogoutResponseRequest: func(sp cs.ServiceProvider, request *http.Request) error {
+							return nil
+						},
+					}
+					mockDB, _, err := sqlmock.New()
+					if err != nil {
+						t.Errorf("failed sqlmock.New(): %v", err)
+					}
+					// mock.ExpectBegin() コミットを許可しない
+					idb := &MockDB{
+						db: mockDB,
+					}
+					return &SamlClient{
+						delegate: r,
+						dao: &MockUserDao{
+							IUserEntityDao: db.NewUserEntityDao(idb),
+						},
+					}
+				}(),
+				idpMetadataUrl: "file://test",
+				backendURL:     common.GetConfig().Saml.BackendURL,
+				ctx: func(w http.ResponseWriter) echo.Context {
+					ctx := NewCookieContext([]struct {
+						name    string
+						secret  []byte
+						payload any
+					}{
+						{
+							name:   net.NameAccessToken,
+							secret: net.AccessTokenSecret,
+							payload: net.AuthSessionPayload{
+								UserId: expectUserId,
+								Email:  "test-mail@test.co.jp",
+							},
+						},
+						{
+							name:   net.NameSLOToken,
+							secret: net.SLOSessionSecret,
+							payload: net.SLOSessionPayload{
+								UserId:             expectUserId,
+								AuthnRequestId:     "test-authn-request-id",
+								RedirectURL:        "http://localhost/test-redirect",
+								RedirectURLOnError: "http://localhost/test-redirect-test",
+							},
+						},
+					}, w, t)
+
+					ctx.Request().Form = url.Values{}
+					ctx.Request().Form.Add("SAMLResponse", toFormUrlencoded(TestDataLogoutResponse))
+
+					return ctx
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "test3_error",
+			args: args{
+				samlClient: func() ISamlClient {
+					r := &MockSamlClientDelegator{
+						delegateOpenFile: func(path string) (io.ReadCloser, error) {
+							r := strings.NewReader(TestDataIdpMetadata)
+							return &MockReaderCloser{
+								deleteRead: func(p []byte) (n int, err error) {
+									return r.Read(p)
+								},
+							}, nil
+						},
+						delegateValidateLogoutResponseRequest: func(sp cs.ServiceProvider, request *http.Request) error {
+							return nil
+						},
+					}
+					mockDB, mock, err := sqlmock.New()
+					if err != nil {
+						t.Errorf("failed sqlmock.New(): %v", err)
+					}
+					mock.ExpectBegin()
+					mock.ExpectRollback()
+					idb := &MockDB{
+						db: mockDB,
+					}
+					return &SamlClient{
+						delegate: r,
+						dao: &MockUserDao{
+							IUserEntityDao: db.NewUserEntityDao(idb),
+						},
+					}
+				}(),
+				idpMetadataUrl: "file://test",
+				backendURL:     common.GetConfig().Saml.BackendURL,
+				ctx: func(w http.ResponseWriter) echo.Context {
+					ctx := NewCookieContext([]struct {
+						name    string
+						secret  []byte
+						payload any
+					}{
+						{
+							name:   net.NameAccessToken,
+							secret: net.AccessTokenSecret,
+							payload: net.AuthSessionPayload{
+								UserId: expectUserId,
+								Email:  "test-mail@test.co.jp",
+							},
+						},
+						{
+							name:   net.NameSLOToken,
+							secret: net.SLOSessionSecret,
+							payload: net.SLOSessionPayload{
+								UserId:             expectUserId,
+								AuthnRequestId:     "test-authn-request-id",
+								RedirectURL:        "http://localhost/test-redirect",
+								RedirectURLOnError: "http://localhost/test-redirect-test",
+							},
+						},
+					}, w, t)
+
+					ctx.Request().Form = url.Values{}
+					ctx.Request().Form.Add("SAMLResponse", "¥^-0") // base64でデコードエラーを発生させる
+
+					return ctx
+				},
+			},
+			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000024),
+		},
+		{
+			name: "test4_error",
+			args: args{
+				samlClient: func() ISamlClient {
+					r := &MockSamlClientDelegator{
+						delegateOpenFile: func(path string) (io.ReadCloser, error) {
+							r := strings.NewReader(TestDataIdpMetadata)
+							return &MockReaderCloser{
+								deleteRead: func(p []byte) (n int, err error) {
+									return r.Read(p)
+								},
+							}, nil
+						},
+						delegateValidateLogoutResponseRequest: func(sp cs.ServiceProvider, request *http.Request) error {
+							return nil
+						},
+					}
+					mockDB, mock, err := sqlmock.New()
+					if err != nil {
+						t.Errorf("failed sqlmock.New(): %v", err)
+					}
+					mock.ExpectBegin()
+					// mock.ExpectRollback() ロールバックのエラーは無視されることを確認する
+					idb := &MockDB{
+						db: mockDB,
+					}
+					return &SamlClient{
+						delegate: r,
+						dao: &MockUserDao{
+							IUserEntityDao: db.NewUserEntityDao(idb),
+						},
+					}
+				}(),
+				idpMetadataUrl: "file://test",
+				backendURL:     common.GetConfig().Saml.BackendURL,
+				ctx: func(w http.ResponseWriter) echo.Context {
+					ctx := NewCookieContext([]struct {
+						name    string
+						secret  []byte
+						payload any
+					}{
+						{
+							name:   net.NameAccessToken,
+							secret: net.AccessTokenSecret,
+							payload: net.AuthSessionPayload{
+								UserId: expectUserId,
+								Email:  "test-mail@test.co.jp",
+							},
+						},
+						{
+							name:   net.NameSLOToken,
+							secret: net.SLOSessionSecret,
+							payload: net.SLOSessionPayload{
+								UserId:             expectUserId,
+								AuthnRequestId:     "test-authn-request-id",
+								RedirectURL:        "http://localhost/test-redirect",
+								RedirectURLOnError: "http://localhost/test-redirect-test",
+							},
+						},
+					}, w, t)
+
+					ctx.Request().Form = url.Values{}
+					ctx.Request().Form.Add("SAMLResponse", "¥^-0") // base64でデコードエラーを発生させる
+
+					return ctx
+				},
+			},
+			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000024),
+		},
+		{
+			name: "test4_error",
+			args: args{
+				samlClient: func() ISamlClient {
+					r := &MockSamlClientDelegator{
+						delegateOpenFile: func(path string) (io.ReadCloser, error) {
+							r := strings.NewReader(TestDataIdpMetadata)
+							return &MockReaderCloser{
+								deleteRead: func(p []byte) (n int, err error) {
+									return r.Read(p)
+								},
+							}, nil
+						},
+						delegateValidateLogoutResponseRequest: func(sp cs.ServiceProvider, request *http.Request) error {
+							return nil
+						},
+					}
+					mockDB, mock, err := sqlmock.New()
+					if err != nil {
+						t.Errorf("failed sqlmock.New(): %v", err)
+					}
+					mock.ExpectBegin()
+					mock.ExpectRollback()
+					idb := &MockDB{
+						db: mockDB,
+					}
+					return &SamlClient{
+						delegate: r,
+						dao: &MockUserDao{
+							IUserEntityDao: db.NewUserEntityDao(idb),
+						},
+					}
+				}(),
+				idpMetadataUrl: "file://test",
+				backendURL:     common.GetConfig().Saml.BackendURL,
+				ctx: func(w http.ResponseWriter) echo.Context {
+					ctx := NewCookieContext([]struct {
+						name    string
+						secret  []byte
+						payload any
+					}{
+						{
+							name:   net.NameAccessToken,
+							secret: net.AccessTokenSecret,
+							payload: net.AuthSessionPayload{
+								UserId: expectUserId,
+								Email:  "test-mail@test.co.jp",
+							},
+						},
+						{
+							name:   net.NameSLOToken,
+							secret: net.SLOSessionSecret,
+							payload: net.SLOSessionPayload{
+								UserId:             expectUserId,
+								AuthnRequestId:     "test-authn-request-id",
+								RedirectURL:        "http://localhost/test-redirect",
+								RedirectURLOnError: "http://localhost/test-redirect-test",
+							},
+						},
+					}, w, t)
+
+					ctx.Request().Form = url.Values{}
+					ctx.Request().Form.Add("SAMLResponse", "YWJjPTEyMw==") // unmarshalの失敗を予期する
+
+					return ctx
+				},
+			},
+			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000026),
+		},
+		{
+			name: "test5_error",
+			args: args{
+				samlClient: func() ISamlClient {
+					r := &MockSamlClientDelegator{
+						delegateOpenFile: func(path string) (io.ReadCloser, error) {
+							r := strings.NewReader(TestDataIdpMetadata)
+							return &MockReaderCloser{
+								deleteRead: func(p []byte) (n int, err error) {
+									return r.Read(p)
+								},
+							}, nil
+						},
+						delegateValidateLogoutResponseRequest: func(sp cs.ServiceProvider, request *http.Request) error {
+							return nil
+						},
+					}
+					mockDB, mock, err := sqlmock.New()
+					if err != nil {
+						t.Errorf("failed sqlmock.New(): %v", err)
+					}
+					mock.ExpectBegin()
+					mock.ExpectRollback()
+					idb := &MockDB{
+						db: mockDB,
+					}
+					return &SamlClient{
+						delegate: r,
+						dao: &MockUserDao{
+							IUserEntityDao: db.NewUserEntityDao(idb),
+						},
+					}
+				}(),
+				idpMetadataUrl: "file://test",
+				backendURL:     common.GetConfig().Saml.BackendURL,
+				ctx: func(w http.ResponseWriter) echo.Context {
+					ctx := NewCookieContext([]struct {
+						name    string
+						secret  []byte
+						payload any
+					}{
+						{
+							name:   net.NameAccessToken,
+							secret: net.AccessTokenSecret,
+							payload: net.AuthSessionPayload{
+								UserId: expectUserId,
+								Email:  "test-mail@test.co.jp",
+							},
+						},
+						{
+							name:   net.NameSLOToken,
+							secret: net.SLOSessionSecret,
+							payload: net.SLOSessionPayload{
+								UserId:             expectUserId,
+								AuthnRequestId:     "", // authnRequestIdが空
+								RedirectURL:        "http://localhost/test-redirect",
+								RedirectURLOnError: "http://localhost/test-redirect-test",
+							},
+						},
+					}, w, t)
+
+					ctx.Request().Form = url.Values{}
+					ctx.Request().Form.Add("SAMLResponse", toFormUrlencoded(TestDataLogoutResponse))
+
+					return ctx
+				},
+			},
+			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000030),
+		},
+		{
+			name: "test6_error",
+			args: args{
+				samlClient: func() ISamlClient {
+					r := &MockSamlClientDelegator{
+						delegateOpenFile: func(path string) (io.ReadCloser, error) {
+							r := strings.NewReader(TestDataIdpMetadata)
+							return &MockReaderCloser{
+								deleteRead: func(p []byte) (n int, err error) {
+									return r.Read(p)
+								},
+							}, nil
+						},
+						delegateValidateLogoutResponseRequest: func(sp cs.ServiceProvider, request *http.Request) error {
+							return nil
+						},
+					}
+					mockDB, mock, err := sqlmock.New()
+					if err != nil {
+						t.Errorf("failed sqlmock.New(): %v", err)
+					}
+					mock.ExpectBegin()
+					mock.ExpectRollback()
+					idb := &MockDB{
+						db: mockDB,
+					}
+					return &SamlClient{
+						delegate: r,
+						dao: &MockUserDao{
+							IUserEntityDao: db.NewUserEntityDao(idb),
+						},
+					}
+				}(),
+				idpMetadataUrl: "file://test",
+				backendURL:     common.GetConfig().Saml.BackendURL,
+				ctx: func(w http.ResponseWriter) echo.Context {
+					ctx := NewCookieContext([]struct {
+						name    string
+						secret  []byte
+						payload any
+					}{
+						{
+							name:   net.NameAccessToken,
+							secret: net.AccessTokenSecret,
+							payload: net.AuthSessionPayload{
+								UserId: expectUserId,
+								Email:  "test-mail@test.co.jp",
+							},
+						},
+						{
+							name:   net.NameSLOToken,
+							secret: net.SLOSessionSecret,
+							payload: net.SLOSessionPayload{
+								UserId:             expectUserId,
+								AuthnRequestId:     "test-authn-request-id-dummy", // AuthnRequestIdの不一致を発生させる
+								RedirectURL:        "http://localhost/test-redirect",
+								RedirectURLOnError: "http://localhost/test-redirect-test",
+							},
+						},
+					}, w, t)
+
+					ctx.Request().Form = url.Values{}
+					ctx.Request().Form.Add("SAMLResponse", toFormUrlencoded(TestDataLogoutResponse))
+
+					return ctx
+				},
+			},
+			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000032),
+		},
+		{
+			name: "test7_error",
+			args: args{
+				samlClient: func() ISamlClient {
+					r := &MockSamlClientDelegator{
+						delegateOpenFile: func(path string) (io.ReadCloser, error) {
+							r := strings.NewReader(TestDataIdpMetadata)
+							return &MockReaderCloser{
+								deleteRead: func(p []byte) (n int, err error) {
+									return r.Read(p)
+								},
+							}, nil
+						},
+						delegateValidateLogoutResponseRequest: func(sp cs.ServiceProvider, request *http.Request) error {
+							return errors.New("test-error") // バリデーションを失敗させる
+						},
+					}
+					mockDB, mock, err := sqlmock.New()
+					if err != nil {
+						t.Errorf("failed sqlmock.New(): %v", err)
+					}
+					mock.ExpectBegin()
+					mock.ExpectRollback()
+					idb := &MockDB{
+						db: mockDB,
+					}
+					return &SamlClient{
+						delegate: r,
+						dao: &MockUserDao{
+							IUserEntityDao: db.NewUserEntityDao(idb),
+						},
+					}
+				}(),
+				idpMetadataUrl: "file://test",
+				backendURL:     common.GetConfig().Saml.BackendURL,
+				ctx: func(w http.ResponseWriter) echo.Context {
+					ctx := NewCookieContext([]struct {
+						name    string
+						secret  []byte
+						payload any
+					}{
+						{
+							name:   net.NameAccessToken,
+							secret: net.AccessTokenSecret,
+							payload: net.AuthSessionPayload{
+								UserId: expectUserId,
+								Email:  "test-mail@test.co.jp",
+							},
+						},
+						{
+							name:   net.NameSLOToken,
+							secret: net.SLOSessionSecret,
+							payload: net.SLOSessionPayload{
+								UserId:             expectUserId,
+								AuthnRequestId:     "test-authn-request-id",
+								RedirectURL:        "http://localhost/test-redirect",
+								RedirectURLOnError: "http://localhost/test-redirect-test",
+							},
+						},
+					}, w, t)
+
+					ctx.Request().Form = url.Values{}
+					ctx.Request().Form.Add("SAMLResponse", toFormUrlencoded(TestDataLogoutResponse))
+
+					return ctx
+				},
+			},
+			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000021),
+		},
+		{
+			name: "test8_error",
+			args: args{
+				samlClient: func() ISamlClient {
+					r := &MockSamlClientDelegator{
+						delegateOpenFile: func(path string) (io.ReadCloser, error) {
+							r := strings.NewReader(TestDataIdpMetadata)
+							return &MockReaderCloser{
+								deleteRead: func(p []byte) (n int, err error) {
+									return r.Read(p)
+								},
+							}, nil
+						},
+						delegateValidateLogoutResponseRequest: func(sp cs.ServiceProvider, request *http.Request) error {
+							return nil
+						},
+					}
+					mockDB, mock, err := sqlmock.New()
+					if err != nil {
+						t.Errorf("failed sqlmock.New(): %v", err)
+					}
+					mock.ExpectBegin()
+					mock.ExpectRollback()
+					idb := &MockDB{
+						db: mockDB,
+					}
+					return &SamlClient{
+						delegate: r,
+						dao: &MockUserDao{
+							IUserEntityDao: db.NewUserEntityDao(idb),
+							delegateUpdateToken: func() error {
+								return lang.NewFxtError(lang.ErrDBQuery)
+							},
+						},
+					}
+				}(),
+				idpMetadataUrl: "file://test",
+				backendURL:     common.GetConfig().Saml.BackendURL,
+				ctx: func(w http.ResponseWriter) echo.Context {
+					ctx := NewCookieContext([]struct {
+						name    string
+						secret  []byte
+						payload any
+					}{
+						{
+							name:   net.NameAccessToken,
+							secret: net.AccessTokenSecret,
+							payload: net.AuthSessionPayload{
+								UserId: expectUserId,
+								Email:  "test-mail@test.co.jp",
+							},
+						},
+						{
+							name:   net.NameSLOToken,
+							secret: net.SLOSessionSecret,
+							payload: net.SLOSessionPayload{
+								UserId:             expectUserId,
+								AuthnRequestId:     "test-authn-request-id",
+								RedirectURL:        "http://localhost/test-redirect",
+								RedirectURLOnError: "http://localhost/test-redirect-test",
+							},
+						},
+					}, w, t)
+
+					ctx.Request().Form = url.Values{}
+					ctx.Request().Form.Add("SAMLResponse", toFormUrlencoded(TestDataLogoutResponse))
+
+					return ctx
+				},
+			},
+			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000017),
+		},
+		{
+			name: "test9_error",
+			args: args{
+				samlClient: func() ISamlClient {
+					r := &MockSamlClientDelegator{
+						delegateOpenFile: func(path string) (io.ReadCloser, error) {
+							r := strings.NewReader(TestDataIdpMetadata)
+							return &MockReaderCloser{
+								deleteRead: func(p []byte) (n int, err error) {
+									return r.Read(p)
+								},
+							}, nil
+						},
+						delegateValidateLogoutResponseRequest: func(sp cs.ServiceProvider, request *http.Request) error {
+							return nil
+						},
+					}
+					mockDB, mock, err := sqlmock.New()
+					if err != nil {
+						t.Errorf("failed sqlmock.New(): %v", err)
+					}
+					mock.ExpectBegin()
+					// mock.ExpectCommit() コミットを失敗させる
+					idb := &MockDB{
+						db: mockDB,
+					}
+					return &SamlClient{
+						delegate: r,
+						dao: &MockUserDao{
+							IUserEntityDao: db.NewUserEntityDao(idb),
+						},
+					}
+				}(),
+				idpMetadataUrl: "file://test",
+				backendURL:     common.GetConfig().Saml.BackendURL,
+				ctx: func(w http.ResponseWriter) echo.Context {
+					ctx := NewCookieContext([]struct {
+						name    string
+						secret  []byte
+						payload any
+					}{
+						{
+							name:   net.NameAccessToken,
+							secret: net.AccessTokenSecret,
+							payload: net.AuthSessionPayload{
+								UserId: expectUserId,
+								Email:  "test-mail@test.co.jp",
+							},
+						},
+						{
+							name:   net.NameSLOToken,
+							secret: net.SLOSessionSecret,
+							payload: net.SLOSessionPayload{
+								UserId:             expectUserId,
+								AuthnRequestId:     "test-authn-request-id",
+								RedirectURL:        "http://localhost/test-redirect",
+								RedirectURLOnError: "http://localhost/test-redirect-test",
+							},
+						},
+					}, w, t)
+
+					ctx.Request().Form = url.Values{}
+					ctx.Request().Form.Add("SAMLResponse", toFormUrlencoded(TestDataLogoutResponse))
+
+					return ctx
+				},
+			},
+			wantRedirectURL: "http://localhost/test-redirect-test?saml_error=1",
+			wantSamlErr:     uint32ptr(0x80000016),
 		},
 	}
 
@@ -1575,12 +2266,59 @@ func Test_SamlClient_ExecuteSamlSlo(t *testing.T) {
 
 				err := tt.args.samlClient.ExecuteSamlSlo(tt.args.ctx(rec))
 				if (err != nil) != tt.wantErr {
-					t.Errorf("ExecuteSamlLogout()=%v want=%v", err, tt.wantErr)
+					t.Errorf("ExecuteSamlSlo()=%v want=%v", err, tt.wantErr)
 				} else if err != nil {
 					if _, ok := err.(*lang.FxtError); !ok {
 						t.Errorf("invalid error type: %v", err)
 					}
 				}
+
+				redirectURL := rec.Header().Get(echo.HeaderLocation)
+				if tt.wantRedirectURL != redirectURL {
+					t.Errorf("ExecuteSamlSlo()=%v wantRedirectURL=%v", redirectURL, tt.wantRedirectURL)
+				}
+
+				parser := &http.Request{Header: http.Header{"Cookie": rec.Header()["Set-Cookie"]}}
+
+				if redirectURL == "http://localhost/test-redirect" {
+					// 成功時
+
+					// クッキーのチェック ここから ==>
+					// アクセストークン
+					c, err := parser.Cookie(net.NameAccessToken)
+					if err != nil {
+						t.Errorf("invalid cookie: %v", err)
+					}
+					claims, err := net.VerifyToken[net.AuthSessionPayload](c.Value, net.AccessTokenSecret)
+					if err == nil {
+						t.Errorf("access token wasn't removed: %v", claims)
+					}
+
+					// リフレッシュトークン
+					c, err = parser.Cookie(net.NameRefreshToken)
+					if err != nil {
+						t.Errorf("invalid cookie: %v", err)
+					}
+					claims, err = net.VerifyToken[net.AuthSessionPayload](c.Value, net.RefreshTokenSecret)
+					if err == nil {
+						t.Errorf("refresh token wasn't removed: %v", claims)
+					}
+				}
+
+				// エラートークン
+				c, err := parser.Cookie(net.NameSAMLErrorToken)
+				if (tt.wantSamlErr != nil) != (err == nil) {
+					t.Errorf("ExecuteSamlAcs()=%v, wantSamlErr=%v", err, tt.wantSamlErr)
+				} else if err == nil {
+					errClaims, err := net.VerifyToken[gen.ErrorWithTime](c.Value, net.SAMLErrorSessionSecret)
+					if err != nil {
+						t.Errorf("invalid cookie: %v", err)
+					}
+					if errClaims.Value.Err.Code != *tt.wantSamlErr {
+						t.Errorf("ExecuteSamlAcs()=%v, wantSamlErr=%v", errClaims.Value.Err.Code, tt.wantSamlErr)
+					}
+				}
+				// <== ここまで クッキーのチェック
 			}
 		})
 
