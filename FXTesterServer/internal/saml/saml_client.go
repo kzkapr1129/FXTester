@@ -426,11 +426,19 @@ func (c *SamlClient) executeSamlSloByMySp(ctx echo.Context) (lastError error) {
 			// リダイレクト先にURLパラメータでエラー内容を通知
 			params := url.Values{}
 			params.Add(URLParamSamlError, "1")
-			// リダイレクト要求を発効
+			// リダイレクト要求を発行
 			lastError = ctx.Redirect(http.StatusFound, session.RedirectURLOnError+"?"+params.Encode())
 		} else {
 			if err := c.dao.Commit(); err != nil {
-				ctx.Logger().Warn("error in commit: %v", err)
+				// エラーレスポンスを作成
+				_, res := lang.ConvertToGenError(ctx, err)
+				// エラーの詳細をクッキーに保存
+				net.CreateSamlErrorSession(ctx.Response().Writer, *res)
+				// リダイレクト要求の発行
+				params := url.Values{}
+				params.Add(URLParamSamlError, "1")
+				lastError = ctx.Redirect(http.StatusFound, session.RedirectURLOnError+"?"+params.Encode())
+				return
 			}
 
 			// executeSamlSloByMySp()がエラーを返却しなかった場合
@@ -456,16 +464,15 @@ func (c *SamlClient) executeSamlSloByMySp(ctx echo.Context) (lastError error) {
 	}
 
 	// LogoutResponseからInResponseTo(AuthnRequest.ID)を取り出す
-	logoutRequestId := logoutResponse.InResponseTo
-	if logoutRequestId == "" {
+	if session.AuthnRequestId == "" {
 		// AuthnRequestIDが格納されていない場合
 		return lang.NewFxtError(lang.ErrEmptyLogoutRequestId)
 	}
 
 	// IDが一致しているか確認
-	if session.AuthnRequestId != logoutRequestId {
+	if session.AuthnRequestId != logoutResponse.InResponseTo {
 		// IDが一致していない場合
-		return lang.NewFxtError(lang.ErrInvalidNameId)
+		return lang.NewFxtError(lang.ErrInvalidAuthnRequestId)
 	}
 
 	// LogoutResponseの検証
