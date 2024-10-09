@@ -68,3 +68,33 @@ var TestDataLogoutResponse = `
         <samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success" />
     </samlp:Status>
 </samlp:LogoutResponse>`
+
+var TestDataLogoutRequest = `
+<samlp:LogoutRequest xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
+                     xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+                     ID="id-6c7deebc0ec968d7a5d99e91375c62a16bcee711"
+                     Version="2.0"
+                     IssueInstant="2024-10-08T09:19:26.689Z"
+                     Destination="http://keycloak:8080/realms/my-realm/protocol/saml"
+                     >
+    <saml:Issuer Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity">https://localhost:8001/</saml:Issuer>
+    <saml:NameID NameQualifier="http://keycloak:8080/realms/my-realm"
+                 SPNameQualifier="https://localhost:8001/"
+                 >test@test.co.jp</saml:NameID>
+</samlp:LogoutRequest>
+`
+
+var TestDataLogoutRequestNoNameId = `
+<samlp:LogoutRequest xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
+                     xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+                     ID="id-6c7deebc0ec968d7a5d99e91375c62a16bcee711"
+                     Version="2.0"
+                     IssueInstant="2024-10-08T09:19:26.689Z"
+                     Destination="http://keycloak:8080/realms/my-realm/protocol/saml"
+                     >
+    <saml:Issuer Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity">https://localhost:8001/</saml:Issuer>
+    <saml:NameID NameQualifier="http://keycloak:8080/realms/my-realm"
+                 SPNameQualifier="https://localhost:8001/"
+                 ></saml:NameID>
+</samlp:LogoutRequest>
+`
