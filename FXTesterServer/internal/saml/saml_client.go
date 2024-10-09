@@ -394,7 +394,12 @@ func (c *SamlClient) executeSamlSloByOther(ctx echo.Context) (lastError error) {
 	buf.Write(logoutResponse.Post(emptyRelayState))
 	buf.WriteString(`</body></html>`)
 
-	return ctx.HTML(http.StatusOK, buf.String())
+	// text/htmlとしてレスポンスを返却する
+	if err = ctx.HTML(http.StatusOK, buf.String()); err != nil {
+		return lang.NewFxtError(lang.ErrSSOHtmlWriting).SetCause(err)
+	}
+
+	return nil
 }
 
 // executeSamlSloByMySp 自SP起点のシングルサインアウトを処理する
