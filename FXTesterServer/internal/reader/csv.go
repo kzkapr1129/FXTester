@@ -66,7 +66,6 @@ func ReadCandleCsv(csvInfo gen.CsvInfo, r io.Reader) (res []common.Candle, lastE
 		}
 
 		time, err := common.ToTime(colTime)
-		fmt.Println(colTime, ": ", time)
 		if err != nil {
 			return nil, err
 		}
