@@ -1,7 +1,6 @@
 package algo
 
 import (
-	"fmt"
 	"fxtester/internal/common"
 	"regexp"
 	"strconv"
@@ -13,7 +12,6 @@ var strToTime func(v string) time.Time = func() func(v string) time.Time {
 
 	return func(v string) time.Time {
 		s := r.FindStringSubmatch(v)
-		fmt.Println(s)
 		if len(s) < 3 {
 			panic("invalid v: " + v)
 		}
