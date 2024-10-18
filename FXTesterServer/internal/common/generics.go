@@ -81,7 +81,7 @@ func GetEnvAs[T uint16 | int | string](envName string, required bool, defaultVal
 
 var errNone = errors.New("none")
 
-func NextValue[T any](vs []T) func() (T, error) {
+func MakeSeeker[T any](vs []T) func() (T, error) {
 	cur := 0
 	return func() (T, error) {
 		if len(vs) <= cur {
