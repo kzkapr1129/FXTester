@@ -3,7 +3,7 @@ package service
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
+	"fxtester/internal/algo"
 	"fxtester/internal/common"
 	"fxtester/internal/db"
 	"fxtester/internal/gen"
@@ -14,6 +14,8 @@ import (
 	"fxtester/internal/websock"
 	"mime/multipart"
 	"net/http"
+	"sort"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -110,73 +112,90 @@ func (b *BarService) PostZigzag(ctx echo.Context) error {
 	}
 
 	form := ctx.Request().MultipartForm
-	types := common.NextValue(form.Value["type"])
-	csvInfos := common.NextValue(form.Value["csvInfo"])
-	candless := common.NextValue(form.Value["candles"])
-	csvs := common.NextValue(form.File["csv"])
+	types := form.Value["type"]
+	csvInfos := form.Value["csvInfo"]
+	candless := form.Value["candles"]
+	csvs := form.File["csv"]
 
-	for {
-		t, err := types()
-		if err != nil {
-			break
-		}
-
-		candles, err := func() ([]gen.Candle, error) {
-			var res []gen.Candle
-			switch t {
-			case string(gen.PostZigzagRequestTypeCsv):
-				v, err := csvInfos()
-				if err != nil {
-					// バリデーション済みのため発生しない想定のエラー
-					panic("invalid csvInfo")
-				}
-				var csvInfo gen.CsvInfo
-				if err := json.Unmarshal([]byte(v), &csvInfo); err != nil {
-					// バリデーション済みのため発生しない想定のエラー
-					panic("invalid csvInfo")
-				}
-
-				csvh, err := csvs()
-				if err != nil {
-					// バリデーション済みのため発生しない想定のエラー
-					panic("invalid csvInfo")
-				}
-
-				csvf, err := csvh.Open()
-				if err != nil {
-					return nil, lang.NewFxtError(lang.ErrInvalidParameterError, "csv")
-				}
-				defer csvf.Close()
-
-				candles, err := reader.ReadCandleCsv(csvInfo, csvf)
-				if err != nil {
-					return nil, lang.NewFxtError(lang.ErrInvalidParameterError, "csv").SetCause(err)
-				}
-
-				fmt.Println(candles)
-
-			case string(gen.PostZigzagRequestTypeCandles):
-				v, err := candless()
-				if err != nil {
-					// バリデーション済みのため発生しない想定のエラー
-					panic("invalid candles")
-				}
-				if err := json.Unmarshal([]byte(v), &res); err != nil {
-					// バリデーション済みのため発生しない想定のエラー
-					panic("invalid candles")
-				}
-			default:
+	paramCandles, err := func() ([]common.Candle, error) {
+		t := types[0]
+		var res []common.Candle
+		switch t {
+		case string(gen.PostZigzagRequestTypeCsv):
+			v := csvInfos[0]
+			var csvInfo gen.CsvInfo
+			if err := json.Unmarshal([]byte(v), &csvInfo); err != nil {
 				// バリデーション済みのため発生しない想定のエラー
-				panic("invalid type " + t)
+				panic("invalid csvInfo")
 			}
-			return res, nil
-		}()
-		if err != nil {
-			return err
-		}
 
-		fmt.Println(candles)
+			csvf, err := csvs[0].Open()
+			if err != nil {
+				return nil, lang.NewFxtError(lang.ErrInvalidParameterError, "csv")
+			}
+			defer csvf.Close()
+
+			res, err = reader.ReadCandleCsv(csvInfo, csvf)
+			if err != nil {
+				return nil, lang.NewFxtError(lang.ErrInvalidParameterError, "csv").SetCause(err)
+			}
+
+		case string(gen.PostZigzagRequestTypeCandles):
+			candles := []gen.Candle{}
+			if err := json.Unmarshal([]byte(candless[0]), &candles); err != nil {
+				// バリデーション済みのため発生しない想定のエラー
+				panic("invalid candles")
+			}
+
+			// gen.Candle -> common.Candle に変換
+			for _, c := range candles {
+				t, err := common.ToTime(c.Time)
+				if err != nil {
+					// バリデーション済みのため発生しない想定のエラー
+					panic("invalid candles")
+				}
+				res = append(res, common.Candle{
+					Time:  *t,
+					High:  float64(c.High),
+					Open:  float64(c.Open),
+					Close: float64(c.Close),
+					Low:   float64(c.Low),
+				})
+			}
+		default:
+			// バリデーション済みのため発生しない想定のエラー
+			panic("invalid type " + t)
+		}
+		return res, nil
+	}()
+	if err != nil {
+		return err
 	}
 
-	return ctx.JSON(http.StatusAccepted, gen.PostZigzagResult{})
+	// ジグザグの計算
+	pbs := algo.FindZigzagPeakToBottom(paramCandles)
+	bps := algo.FindZigzagBottomToPeak(paramCandles)
+
+	// 時刻順に並び替える
+	zigzags := append(pbs, bps...)
+	sort.Slice(zigzags, func(i, j int) bool {
+		return zigzags[i].StartTime.Unix() < zigzags[j].StartTime.Unix()
+	})
+
+	items := []gen.Zigzag{}
+	for _, z := range zigzags {
+		items = append(items, gen.Zigzag{
+			BottomIndex: z.BottomIndex,
+			Delta:       float32(z.Delta),
+			Kind:        z.Kind,
+			PeakIndex:   z.PeakIndex,
+			StartTime:   z.StartTime.Format(time.RFC3339),
+			Velocity:    float32(z.Velocity),
+		})
+	}
+
+	return ctx.JSON(http.StatusCreated, gen.PostZigzagResult{
+		Count: len(items),
+		Items: items,
+	})
 }

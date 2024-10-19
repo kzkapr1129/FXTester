@@ -187,6 +187,13 @@ components:
           format: float
         kind:
           enum: [peakToBottom, bottomToPeak]
+      required:
+        - startTime
+        - peakIndex
+        - bottomIndex
+        - velocity
+        - delta
+        - kind
     PostZigzagRequest:
       type: object
       properties:
@@ -207,7 +214,9 @@ components:
       type: object
       properties:
         items:
-          $ref: "#/components/schemas/Zigzag"
+          type: array
+          items:
+            $ref: "#/components/schemas/Zigzag"
         count:
           type: integer
           minimum: 0
