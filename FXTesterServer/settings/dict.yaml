@@ -3,14 +3,20 @@ dict:
     name:
       ja: 名前
       en: Name
+    file:
+      ja: ファイル
+      en: File
+    type:
+      ja: タイプ
+      en: Type
 
   messages:
-    InternalError:
+    InternalServerError:
       ja: |
-        インターナルエラーが発生しました。
+        インターナルサーバーエラーが発生しました。
         (エラーコード: 0x%x)
       en: |
-        インターナルエラーが発生しました(要英訳)。
+        インターナルサーバーエラーが発生しました(要英訳)。
         (エラーコード: 0x%x)
     ForbiddenCharacterError:
       ja: |
@@ -18,6 +24,34 @@ dict:
         (エラーコード: 0x%x)
       en: |
         %sに禁止文字が指定されました(要英訳)。
+        (エラーコード: 0x%x)
+    MissingParameterError:
+      ja: |
+        必須指定の項目が未指定です[%s]
+        (エラーコード: 0x%x)
+      en: |
+        必須指定の項目が未指定です[%s]
+        (エラーコード: 0x%x)
+    InvalidParameterError:
+      ja: |
+        %sに不正なパラメータが指定されたました
+        (エラーコード: 0x%x)
+      en: |
+        %sに不正なパラメータが指定されたました
+        (エラーコード: 0x%x)
+    InvalidRequestProtocolError:
+      ja: |
+        リクエストの形式に不備がありました。
+        (エラーコード: 0x%x)
+      en: |
+        リクエストの形式に不備がありました。
+        (エラーコード: 0x%x)
+    TooLargeMessageError:
+      ja: |
+        リクエストパラメータのサイズ上限を超えました。
+        (エラーコード: 0x%x)
+      en: |
+        リクエストパラメータのサイズ上限を超えました。
         (エラーコード: 0x%x)
 alias:
   "\\*": "ja"

@@ -20,7 +20,7 @@ func main() {
 	// サービスの初期化
 	hdr := service.NewBarService()
 	if err := hdr.Init(); err != nil {
-		e.Logger.Fatalf("failed to load config: %v", err)
+		e.Logger.Fatalf("failed to initialize BarService: %v", err)
 	}
 
 	// ミドルウェアの設定

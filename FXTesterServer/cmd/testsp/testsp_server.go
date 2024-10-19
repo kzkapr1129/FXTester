@@ -25,7 +25,7 @@ type TestSpService struct {
 }
 
 func NewTestSpService() *TestSpService {
-	samlClient := *saml.NewSamlClient(&saml.SamlClientReader{}, nil)
+	samlClient := saml.NewSamlClient(&saml.Delegator{}, nil)
 	idpMetadata, err := samlClient.FetchIdpMetadata()
 	if err != nil {
 		panic(err)
@@ -94,7 +94,7 @@ func (b *TestSpService) GetHome(ctx echo.Context) error {
 	return ctx.HTML(http.StatusOK, string(bytes))
 }
 
-// ユーザをシングルサインオンさせるログインリクエストを作成し、FormのPOSTによってidPに送信するスクリプトタグを含んだHTMLを返却するエンドポイント。
+// GetSamlLogin ユーザをシングルサインオンさせるログインリクエストを作成し、FormのPOSTによってidPに送信するスクリプトタグを含んだHTMLを返却するエンドポイント。
 //
 // (GET /saml/login)
 func (t *TestSpService) GetSamlLogin(ctx echo.Context) error {
@@ -123,14 +123,14 @@ func (t *TestSpService) GetSamlLogin(ctx echo.Context) error {
 	return ctx.HTML(http.StatusOK, buf.String())
 }
 
-// IdPから受け取る認証レスポンス（SAMLアサーション）を処理するエンドポイント。
+// PostSamlAcs IdPから受け取る認証レスポンス（SAMLアサーション）を処理するエンドポイント。
 //
 // (POST /saml/acs)
 func (t *TestSpService) PostSamlAcs(ctx echo.Context) error {
 	return ctx.Redirect(http.StatusFound, t.sp.EntityID)
 }
 
-// ユーザをログアウトさせるログアウトリクエストを作成し、FormのPOSTによってidPに送信するスクリプトタグを含んだHTMLを返却するエンドポイント。
+// GetSamlLogout ユーザをログアウトさせるログアウトリクエストを作成し、FormのPOSTによってidPに送信するスクリプトタグを含んだHTMLを返却するエンドポイント。
 //
 // (GET /saml/logout)
 func (t *TestSpService) GetSamlLogout(ctx echo.Context) error {
@@ -159,7 +159,7 @@ func (t *TestSpService) GetSamlLogout(ctx echo.Context) error {
 	return ctx.HTML(http.StatusOK, buf.String())
 }
 
-// IdPから受け取るログアウトリクエストを処理し、ユーザーをログアウトさせるエンドポイント。
+// PostSamlSlo IdPから受け取るログアウトリクエストを処理し、ユーザーをログアウトさせるエンドポイント。
 //
 // (POST /saml/slo)
 func (b *TestSpService) PostSamlSlo(ctx echo.Context) error {

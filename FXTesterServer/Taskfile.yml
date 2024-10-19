@@ -38,11 +38,25 @@ tasks:
       - task: dc:up:db
 
   # 自動テスト
-  test:
+  ## カバレッジ測定有り
+  test:cover:
     cmds:
       - go test -cover ./... -coverprofile=cover.out
       - go tool cover -html=cover.out -o cover.html
       - open cover.html
+  ## カバレッジ測定無し
+  test:
+    cmds:
+      - go test ./...
+
+  # lint
+  lint:
+    cmds:
+     - |
+      if ! ( command -v staticcheck 2>&1 >/dev/null ); then
+        go install honnef.co/go/tools/cmd/staticcheck@latest
+      fi
+     - staticcheck ./...
 
   # ビルド関連: openapi定義からgo実装の自動生成
   build:openapi:

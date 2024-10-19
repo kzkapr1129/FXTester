@@ -5,6 +5,8 @@ import (
 	"fxtester/internal/lang"
 )
 
+var ErrNoData = errors.New("no-data")
+
 type Token struct {
 	AccessToken  string
 	RefreshToken string
@@ -24,10 +26,10 @@ type UserEntityDao struct {
 	IDaoBase
 }
 
-func NewUserEntityDao(dbWrapper IDbWrapper) IUserEntityDao {
+func NewUserEntityDao(idb IDB) IUserEntityDao {
 	return &UserEntityDao{
 		IDaoBase: &DaoBase{
-			dbWrapper: dbWrapper,
+			db: idb,
 		},
 	}
 }
@@ -56,7 +58,7 @@ func (u *UserEntityDao) CreateUser(email string) (user *UserEntity, lastError er
 func (u *UserEntityDao) UpdateToken(userId int64, accessToken, refreshToken string) error {
 	rows, err := u.IDaoBase.Query("call fxtester_schema.update_token($1, $2, $3)", userId, accessToken, refreshToken)
 	if err != nil {
-		return nil
+		return err
 	}
 	defer rows.Close()
 	return nil
@@ -90,7 +92,7 @@ func (u *UserEntityDao) SelectWithEmail(email string) (*UserEntity, error) {
 	defer rows.Close()
 
 	if !rows.Next() {
-		return nil, lang.NewFxtError(lang.ErrDBQueryResult).SetCause(err)
+		return nil, ErrNoData
 	}
 
 	var user UserEntity

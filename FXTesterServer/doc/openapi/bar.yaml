@@ -5,7 +5,7 @@ info:
   license:
     name: MIT
 servers:
-  - url: http://bar.swagger.io/v1
+  - url: https://localhost:8000/
 components:
   securitySchemes:
     cookieAuth:         # arbitrary name for the security scheme; will be used in the "security" key later
@@ -72,15 +72,172 @@ components:
       required:
         - err
         - time
-
-security: # 全てのエンドポイントに対してbearerの指定を要求する
-  - bearerAuth: []
-
+    File:
+      type: string
+      format: binary
+      description: ファイルのテキストまたはバイナリデータ
+    CsvInfo:
+      type: object
+      properties:
+        existsHeader:
+          type: boolean
+          description: csvにヘッダ行が存在するか
+          example: false
+        delimiterChar:
+          type: string
+          description: csvファイルの区切り文字
+          example: ","
+          minLength: 1
+          maxLength: 1
+          format: '^[,\t\s]$'
+        timeColumnIndex:
+          type: integer
+          description: 時間カラムのインデックス番号(0始まり)
+          example: 0
+          minimum: 0
+        openColumnIndex:
+          type: integer
+          description: 始値カラムのインデックス番号(0始まり)
+          example: 1
+          minimum: 0
+        highColumnIndex:
+          type: integer
+          description: 高値カラムのインデックス番号(0始まり)
+          example: 2
+          minimum: 0
+        lowColumnIndex:
+          type: integer
+          description: 安値カラムのインデックス番号(0始まり)
+          example: 3
+          minimum: 0
+        closeColumnIndex:
+          type: integer
+          description: 終値カラムのインデックス番号(0始まり)
+          example: 4
+          minimum: 0
+      required:
+        - existsHeader
+        - delimiterChar
+        - timeColumnIndex
+        - openColumnIndex
+        - highColumnIndex
+        - lowColumnIndex
+        - closeColumnIndex
+    Candle:
+      type: object
+      description: ローソク足
+      properties:
+        time:
+          type: string
+          example: '2014-10-10T13:50:40.567+09:00'
+          description: 日時
+          format: '^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[1-2][0-9]|3[0-1])T(?:[0-1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\.[0-9]+)?(?:Z|[+-](?:[0-1][0-9]|2[0-3]):[0-5][0-9])$'
+        open:
+          type: number
+          format: float
+          example: 150.101
+          description: 始値
+          minimum: 0.0
+        high:
+          type: number
+          format: float
+          example: 151.533
+          description: 高値
+          minimum: 0.0
+        low:
+          type: number
+          format: float
+          example: 149.224
+          description: 安値
+          minimum: 0.0
+        close:
+          type: number
+          format: float
+          example: 150.524
+          description: 終値
+          minimum: 0.0
+      required:
+        - time
+        - open
+        - high
+        - low
+        - close
+    Candles:
+      type: array
+      description: ローソク足配列
+      items:
+        $ref: "#/components/schemas/Candle"
+    Zigzag:
+      type: object
+      properties:
+        startTime:
+          type: string
+          example: "2024-08-14T11:19:12Z"
+        peakIndex:
+          type: integer
+          minimum: 0
+        bottomIndex:
+          type: integer
+          minimum: 0
+        velocity:
+          type: number
+          format: float
+        delta:
+          type: number
+          format: float
+        kind:
+          enum: [peakToBottom, bottomToPeak]
+      required:
+        - startTime
+        - peakIndex
+        - bottomIndex
+        - velocity
+        - delta
+        - kind
+    PostZigzagRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [csv, candles]
+          description: 入力データのタイプ
+          example: csv
+        csvInfo:
+          $ref: "#/components/schemas/CsvInfo"
+        csv:
+          $ref: "#/components/schemas/File"
+        candles:
+          $ref: "#/components/schemas/Candles"
+      required:
+        - type
+    PostZigzagResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Zigzag"
+        count:
+          type: integer
+          minimum: 0
+      required:
+        - count
+        - items
+    Progress:
+      type: object
+      properties:
+        progress:
+          type: number
+          format: float
+          description: 進捗率[0.0~1.0]
+        complete:
+          type: boolean
+          description: 作業完了フラグ
 paths:
   /saml/login:
     get:
       tags:
-        - Auth API
+        - 認証API
       summary: ユーザをシングルサインオンさせるログインリクエストを作成し、FormのPOSTによってidPに送信するスクリプトタグを含んだHTMLを返却するエンドポイント。
       security: []
       parameters:
@@ -119,7 +276,7 @@ paths:
   /saml/acs:
     post:
       tags:
-        - Auth API
+        - 認証API
       summary: IdPから受け取る認証レスポンス（SAMLアサーション）を処理するエンドポイント。
       security: []
       requestBody:
@@ -145,10 +302,9 @@ paths:
   /saml/logout:
     get:
       tags:
-        - Auth API
+        - 認証API
       summary: ユーザをログアウトさせるログアウトリクエストを作成し、FormのPOSTによってidPに送信するスクリプトタグを含んだHTMLを返却するエンドポイント。
-      security:
-        - cookieAuth: []
+      security: []
       parameters:
         - name: X-Redirect-URL
           in: header
@@ -185,10 +341,9 @@ paths:
   /saml/slo:
     post:
       tags:
-        - Auth API
+        - 認証API
       summary: IdPから受け取るログアウトリクエストを処理し、ユーザーをログアウトさせるエンドポイント。
-      security:
-        - cookieAuth: []
+      security: []
       requestBody:
         content:
           application/x-www-form-urlencoded:
@@ -221,7 +376,7 @@ paths:
   /saml/error:
     get:
       tags:
-        - Auth API
+        - 認証API
       summary: SAMLログインのエラー詳細を返却するエンドポイント
       security: []
       responses:
@@ -233,6 +388,111 @@ paths:
                 $ref: "#/components/schemas/ErrorWithTime"
         default:
           description: 予期しないエラーが発生した場合
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /ws/:uuid:
+    get:
+      tags:
+        - Websocket
+      summary: Websocketと接続を行うためのエンドポイント。
+      responses:
+        '101':
+          description: Websocketのハンドシェイクが正常に完了した場合
+          # WebsocketのI/F仕様
+          x-websocket-I/F:
+            # FE→BE方向のデータフォーマット
+            send:
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    description: 送信は全て無視される
+                    properties:
+                      action:
+                        type: string
+                        description: アクション名
+                      payload:
+                        type: string
+                        description: ペイロード
+            # BE→FE方向のデータフォーマット
+            recv:
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    properties:
+                      action:
+                        type: string
+                        enum: [progress]
+                        description: アクション名
+                      payload:
+                        oneOf:
+                          - $ref: "#/components/schemas/Progress"
+        '204':
+          description: UUIDに関連する作業がすでに完了している場合
+        '400':
+          description: |
+            APIパラメータに不備があった場合
+            - 不正なUUIDが指定された場合 等
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: 権限エラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: |
+            処理続行に困難な問題が発生した場合
+            - サーバー負荷増大により処理を受け取れない
+            - バックエンドのシステムに致命的な確認された 等
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /zigzag:
+    post:
+      tags:
+        - ジグザグAPI
+      summary: ローソク足をジグザグに変換し返却する
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/PostZigzagRequest"
+      responses:
+        '201':
+          description: ジグザグへの変換が正常に完了した場合
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostZigzagResult"
+        '400':
+          description: |
+            APIパラメータに不備があった場合
+            - 予期しないパラメータの指定
+            - ファイルデータの不備 等
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: 権限エラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: |
+            処理続行に困難な問題が発生した場合
+            - サーバー負荷増大により処理を受け取れない
+            - バックエンドのシステムに致命的な確認された 等
           content:
             application/json:
               schema:

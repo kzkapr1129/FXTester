@@ -1,3 +1,4 @@
+// Package common 共通機能をまとめたパッケージ
 package common
 
 import (
@@ -29,7 +30,7 @@ type Config struct {
 	} `yaml:"server"`
 
 	// DB設定
-	Db struct {
+	DB struct {
 		// データベース名前(e.g. postgres)
 		Name string `yaml:"name"`
 		// Data Source Name
@@ -83,6 +84,12 @@ type Config struct {
 		// 辞書ファイルのパス
 		Path string `yaml:"path"`
 	} `yaml:"dict"`
+
+	// Websocket
+	Websocket struct {
+		// 最大接続数
+		MaxConnections int `yaml:"maxConnections"`
+	} `yaml:"websocket"`
 }
 
 var once sync.Once

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/xml"
+	"errors"
 	"fxtester/internal/common"
 	"fxtester/internal/db"
 	"fxtester/internal/gen"
@@ -31,34 +32,52 @@ const SAMLResponse = "SAMLResponse"
 
 const URLParamSamlError = "saml_error"
 
-type ISamlClientReader interface {
+type IDelegator interface {
 	OpenFile(path string) (io.ReadCloser, error)
 	FetchMetadata(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error)
+	ParseAuthResponse(sp cs.ServiceProvider, request *http.Request, possibleRequestIds []string) (*cs.Assertion, error)
+	ValidateLogoutResponseRequest(sp cs.ServiceProvider, request *http.Request) error
 }
 
-type SamlClientReader struct {
+type Delegator struct {
 }
 
-func (c *SamlClientReader) OpenFile(path string) (io.ReadCloser, error) {
+func (c *Delegator) OpenFile(path string) (io.ReadCloser, error) {
 	return os.Open(path)
 }
-func (c *SamlClientReader) FetchMetadata(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
+func (c *Delegator) FetchMetadata(ctx context.Context, url url.URL, timeout time.Duration) (*cs.EntityDescriptor, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return cssp.FetchMetadata(ctx, http.DefaultClient, url)
 }
+func (c *Delegator) ParseAuthResponse(sp cs.ServiceProvider, request *http.Request, possibleRequestIds []string) (*cs.Assertion, error) {
+	return sp.ParseResponse(request, possibleRequestIds)
+}
+func (c *Delegator) ValidateLogoutResponseRequest(sp cs.ServiceProvider, request *http.Request) error {
+	return sp.ValidateLogoutResponseRequest(request)
+}
+
+type ISamlClient interface {
+	Init() error
+	FetchIdpMetadata() (*cs.EntityDescriptor, error)
+	ExecuteSamlLogin(ctx echo.Context, params gen.GetSamlLoginParams) error
+	ExecuteSamlAcs(ctx echo.Context) error
+	ExecuteSamlLogout(ctx echo.Context, params gen.GetSamlLogoutParams) error
+	ExecuteSamlSlo(ctx echo.Context) error
+	ExecuteSamlError(ctx echo.Context) error
+}
 
 type SamlClient struct {
-	reader ISamlClientReader
-	sp     cs.ServiceProvider
-	dao    db.IUserEntityDao
+	delegate IDelegator
+	sp       cs.ServiceProvider
+	dao      db.IUserEntityDao
 }
 
 // NewSamlClient SAMLクライアントを生成します
-func NewSamlClient(reader ISamlClientReader, dbProvider db.IDbWrapper) *SamlClient {
+func NewSamlClient(delegate IDelegator, idb db.IDB) ISamlClient {
 	return &SamlClient{
-		reader: reader,
-		dao:    db.NewUserEntityDao(dbProvider),
+		delegate: delegate,
+		dao:      db.NewUserEntityDao(idb),
 	}
 }
 
@@ -145,10 +164,10 @@ func (s *SamlClient) ExecuteSamlAcs(ctx echo.Context) (lastError error) {
 		net.DeleteSSOSession(ctx.Response().Writer)
 
 		if lastError != nil {
-			ctx.Logger().Error(lastError)
+			ctx.Logger().Errorf("failed ExecuteSamlAcs: %v", lastError)
 
 			// エラーレスポンスを作成
-			_, res := lang.MakeErrorResponse(ctx, lastError)
+			_, res := lang.ConvertToGenError(ctx, lastError)
 			// エラーの詳細をクッキーに保存
 			net.CreateSamlErrorSession(ctx.Response().Writer, *res)
 			// リダイレクト先にURLパラメータでエラー内容を通知
@@ -168,7 +187,7 @@ func (s *SamlClient) ExecuteSamlAcs(ctx echo.Context) (lastError error) {
 
 	// SAMLResponseを解析する
 	possibleRequestIds := []string{session.AuthnRequestId}
-	assertion, err := s.sp.ParseResponse(ctx.Request(), possibleRequestIds)
+	assertion, err := s.delegate.ParseAuthResponse(s.sp, ctx.Request(), possibleRequestIds)
 	if err != nil {
 		// SAMLResponseの解析に失敗した場合 (metadata.xmlとの鍵の不一致等)
 		return lang.NewFxtError(lang.ErrCodeSSOParseResponse).SetCause(err)
@@ -193,7 +212,8 @@ func (s *SamlClient) ExecuteSamlAcs(ctx echo.Context) (lastError error) {
 			if lastError != nil {
 				err := s.dao.Rollback()
 				if err != nil {
-					ctx.Logger().Error(err)
+					// ロールバック失敗時は本来のエラーを書き換えないようにlastErrorはそのままにする
+					ctx.Logger().Errorf("failed Rollback: %v", err)
 				}
 			} else {
 				err := s.dao.Commit()
@@ -205,12 +225,14 @@ func (s *SamlClient) ExecuteSamlAcs(ctx echo.Context) (lastError error) {
 
 		// ユーザが存在するか確認する
 		entity, err := s.dao.SelectWithEmail(email)
-		if err != nil {
+		if errors.Is(err, db.ErrNoData) {
 			// ユーザが存在しない場合はユーザを作成する
 			entity, err = s.dao.CreateUser(email)
 			if err != nil {
 				return err
 			}
+		} else if err != nil {
+			return err
 		}
 
 		// 認証セッションを作成する
@@ -328,24 +350,13 @@ func (c *SamlClient) executeSamlSloByOther(ctx echo.Context) (lastError error) {
 		return err
 	}
 
-	// アクセストークンの検証
-	session, err := net.GetAuthSessionAccessToken(ctx.Request())
-	if err == nil {
-		// サインアウトするユーザ情報が一致しているか確認
-		if session.Email != nameId {
-			ctx.Logger().Warnf("cannot delete the auth session: mismatch nameId %s vs %s", session.Email, nameId)
-		} else {
-			// Authセッションの削除
-			net.DeleteAuthSession(ctx.Response().Writer)
-			// DBのクリア
-			if user, err := c.dao.SelectWithEmail(session.Email); err != nil {
-				ctx.Logger().Warnf("cannot select user: email=%s", session.Email)
-			} else if err = c.dao.UpdateToken(user.UserId, "", ""); err != nil {
-				ctx.Logger().Warnf("cannot update token: userId=%d", user.UserId)
-			}
-		}
-	} else {
-		ctx.Logger().Warn("cannot delete the auth session: session nothing")
+	// DBのクリア
+	if user, err := c.dao.SelectWithEmail(nameId); err != nil {
+		ctx.Logger().Warnf("cannot select user: email=%s", nameId)
+		return err
+	} else if err = c.dao.UpdateToken(user.UserId, "", ""); err != nil {
+		ctx.Logger().Warnf("cannot update token: userId=%d", user.UserId)
+		return err
 	}
 
 	// idPのURLを取得
@@ -355,6 +366,19 @@ func (c *SamlClient) executeSamlSloByOther(ctx echo.Context) (lastError error) {
 	if err != nil {
 		return lang.NewFxtError(lang.ErrSamlLogoutResponseCreation).SetCause(err)
 	}
+
+	// アクセストークンの検証
+	session, err := net.GetAuthSessionAccessToken(ctx.Request())
+	if err == nil {
+		// サインアウトするユーザ情報が一致しているか確認
+		if session.Email != nameId {
+			// このパターンが発生するか不明。他SPのシングルログアウトに影響を与えないようにするためエラー処理は行わない
+			ctx.Logger().Warnf("cannot delete the auth session: mismatch nameId %s vs %s", session.Email, nameId)
+		}
+	}
+
+	// Authセッションの削除
+	net.DeleteAuthSession(ctx.Response().Writer)
 
 	// ヘッダの設定
 	ctx.Response().Header().Add(echo.HeaderContentSecurityPolicy, "default-src; "+
@@ -370,7 +394,12 @@ func (c *SamlClient) executeSamlSloByOther(ctx echo.Context) (lastError error) {
 	buf.Write(logoutResponse.Post(emptyRelayState))
 	buf.WriteString(`</body></html>`)
 
-	return ctx.HTML(http.StatusOK, buf.String())
+	// text/htmlとしてレスポンスを返却する
+	if err = ctx.HTML(http.StatusOK, buf.String()); err != nil {
+		return lang.NewFxtError(lang.ErrSSOHtmlWriting).SetCause(err)
+	}
+
+	return nil
 }
 
 // executeSamlSloByMySp 自SP起点のシングルサインアウトを処理する
@@ -396,17 +425,25 @@ func (c *SamlClient) executeSamlSloByMySp(ctx echo.Context) (lastError error) {
 			// executeSamlSloByMySp()がエラーを返却した場合
 
 			// エラーレスポンスを作成
-			_, res := lang.MakeErrorResponse(ctx, lastError)
+			_, res := lang.ConvertToGenError(ctx, lastError)
 			// エラーの詳細をクッキーに保存
 			net.CreateSamlErrorSession(ctx.Response().Writer, *res)
 			// リダイレクト先にURLパラメータでエラー内容を通知
 			params := url.Values{}
 			params.Add(URLParamSamlError, "1")
-			// リダイレクト要求を発効
+			// リダイレクト要求を発行
 			lastError = ctx.Redirect(http.StatusFound, session.RedirectURLOnError+"?"+params.Encode())
 		} else {
 			if err := c.dao.Commit(); err != nil {
-				ctx.Logger().Warn("error in commit: %v", err)
+				// エラーレスポンスを作成
+				_, res := lang.ConvertToGenError(ctx, err)
+				// エラーの詳細をクッキーに保存
+				net.CreateSamlErrorSession(ctx.Response().Writer, *res)
+				// リダイレクト要求の発行
+				params := url.Values{}
+				params.Add(URLParamSamlError, "1")
+				lastError = ctx.Redirect(http.StatusFound, session.RedirectURLOnError+"?"+params.Encode())
+				return
 			}
 
 			// executeSamlSloByMySp()がエラーを返却しなかった場合
@@ -432,25 +469,19 @@ func (c *SamlClient) executeSamlSloByMySp(ctx echo.Context) (lastError error) {
 	}
 
 	// LogoutResponseからInResponseTo(AuthnRequest.ID)を取り出す
-	logoutRequestId, err := func() (string, error) {
-		if logoutResponse.InResponseTo == "" {
-			// AuthnRequestIDが格納されていない場合
-			return "", lang.NewFxtError(lang.ErrEmptyLogoutRequestId)
-		}
-		return logoutResponse.InResponseTo, nil
-	}()
-	if err != nil {
-		return err
+	if session.AuthnRequestId == "" {
+		// AuthnRequestIDが格納されていない場合
+		return lang.NewFxtError(lang.ErrEmptyLogoutRequestId)
 	}
 
 	// IDが一致しているか確認
-	if session.AuthnRequestId != logoutRequestId {
+	if session.AuthnRequestId != logoutResponse.InResponseTo {
 		// IDが一致していない場合
-		return lang.NewFxtError(lang.ErrInvalidNameId)
+		return lang.NewFxtError(lang.ErrInvalidAuthnRequestId)
 	}
 
 	// LogoutResponseの検証
-	if err := c.sp.ValidateLogoutResponseRequest(ctx.Request()); err != nil {
+	if err := c.delegate.ValidateLogoutResponseRequest(c.sp, ctx.Request()); err != nil {
 		return lang.NewFxtError(lang.ErrSLOValidation).SetCause(err)
 	}
 
@@ -491,7 +522,7 @@ func (c *SamlClient) FetchIdpMetadata() (*cs.EntityDescriptor, error) {
 func (c *SamlClient) fetchIdpMetadataFromFile(idpMetadataUrl string) (*cs.EntityDescriptor, error) {
 	// スキーム(file://)を削除してファイルパスを抽出する
 	path := strings.TrimPrefix(idpMetadataUrl, SchemeFile)
-	f, err := c.reader.OpenFile(path)
+	f, err := c.delegate.OpenFile(path)
 	if err != nil {
 		return nil, lang.NewFxtError(lang.ErrCodeDisk).SetCause(err)
 	}
@@ -520,18 +551,19 @@ func (c *SamlClient) fetchIdpMetadataFromNetwork(idpMetadataUrl string) (*cs.Ent
 
 	var descriptor *cs.EntityDescriptor
 
+	var lastError error = nil
 	baseCtx := context.Background()
 	for retry := 1; retry <= 2; retry++ {
 		timeout := time.Duration(5*retry) * time.Second
-		d, err := c.reader.FetchMetadata(baseCtx, *u, timeout)
+		d, err := c.delegate.FetchMetadata(baseCtx, *u, timeout)
 		if err == nil {
 			descriptor = d
 			break
 		}
-		time.Sleep(timeout)
+		lastError = err
 	}
 	if descriptor == nil {
-		return nil, lang.NewFxtError(lang.ErrDownloadIdpMetadata)
+		return nil, lang.NewFxtError(lang.ErrDownloadIdpMetadata).SetCause(lastError)
 	}
 	return descriptor, nil
 }
